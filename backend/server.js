@@ -820,6 +820,10 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// Orders are persisted to data/orders.json for development/demo purposes only.
+// Serverless platforms like Vercel run functions on ephemeral, read-only-by-default
+// filesystems, so writes here are not guaranteed to persist in production — replace
+// with a real database before deploying there.
 const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
 const ordersPath = path.join(__dirname, '..', 'data', 'orders.json');
 
