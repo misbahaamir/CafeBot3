@@ -1,0 +1,167 @@
+[
+  {
+    "id": "espresso",
+    "name": "Espresso",
+    "description": "A concentrated shot of rich, dark-roast coffee.",
+    "category": "coffee",
+    "price": 3.00,
+    "sizes": ["single", "double"],
+    "options": [],
+    "allergens": [],
+    "available": true
+  },
+  {
+    "id": "americano",
+    "name": "Americano",
+    "description": "Espresso shots topped with hot water for a smooth, mellow cup.",
+    "category": "coffee",
+    "price": 3.50,
+    "sizes": ["small", "medium", "large"],
+    "options": [],
+    "allergens": [],
+    "available": true
+  },
+  {
+    "id": "latte",
+    "name": "Latte",
+    "description": "Espresso with steamed milk and a light layer of foam.",
+    "category": "coffee",
+    "price": 4.50,
+    "sizes": ["small", "medium", "large"],
+    "options": ["oat milk", "almond milk", "extra shot", "vanilla syrup", "caramel syrup"],
+    "allergens": ["milk"],
+    "available": true
+  },
+  {
+    "id": "cappuccino",
+    "name": "Cappuccino",
+    "description": "Equal parts espresso, steamed milk, and thick milk foam.",
+    "category": "coffee",
+    "price": 4.50,
+    "sizes": ["small", "medium", "large"],
+    "options": ["oat milk", "almond milk", "extra shot"],
+    "allergens": ["milk"],
+    "available": true
+  },
+  {
+    "id": "mocha",
+    "name": "Mocha",
+    "description": "Espresso with steamed milk and rich chocolate sauce, topped with whipped cream.",
+    "category": "coffee",
+    "price": 5.00,
+    "sizes": ["small", "medium", "large"],
+    "options": ["oat milk", "almond milk", "no whipped cream"],
+    "allergens": ["milk"],
+    "available": true
+  },
+  {
+    "id": "cold-brew",
+    "name": "Cold Brew",
+    "description": "Slow-steeped coffee served over ice for a smooth, low-acid flavor.",
+    "category": "coffee",
+    "price": 4.25,
+    "sizes": ["medium", "large"],
+    "options": ["oat milk", "vanilla syrup"],
+    "allergens": [],
+    "available": true
+  },
+  {
+    "id": "matcha-latte",
+    "name": "Matcha Latte",
+    "description": "Ceremonial-grade matcha whisked with steamed milk.",
+    "category": "tea",
+    "price": 4.75,
+    "sizes": ["small", "medium", "large"],
+    "options": ["oat milk", "almond milk", "honey"],
+    "allergens": ["milk"],
+    "available": true
+  },
+  {
+    "id": "chai-latte",
+    "name": "Chai Latte",
+    "description": "Spiced black tea concentrate with steamed milk.",
+    "category": "tea",
+    "price": 4.50,
+    "sizes": ["small", "medium", "large"],
+    "options": ["oat milk", "almond milk"],
+    "allergens": ["milk"],
+    "available": true
+  },
+  {
+    "id": "hot-tea",
+    "name": "Hot Tea",
+    "description": "A selection of black, green, and herbal loose-leaf teas.",
+    "category": "tea",
+    "price": 3.00,
+    "sizes": ["one size"],
+    "options": ["black", "green", "chamomile", "peppermint"],
+    "allergens": [],
+    "available": true
+  },
+  {
+    "id": "croissant",
+    "name": "Butter Croissant",
+    "description": "A flaky, all-butter croissant baked fresh daily.",
+    "category": "bakery",
+    "price": 3.75,
+    "sizes": ["one size"],
+    "options": [],
+    "allergens": ["gluten", "milk", "egg"],
+    "available": true
+  },
+  {
+    "id": "blueberry-muffin",
+    "name": "Blueberry Muffin",
+    "description": "A moist muffin loaded with fresh blueberries.",
+    "category": "bakery",
+    "price": 3.50,
+    "sizes": ["one size"],
+    "options": [],
+    "allergens": ["gluten", "milk", "egg"],
+    "available": true
+  },
+  {
+    "id": "chocolate-chip-cookie",
+    "name": "Chocolate Chip Cookie",
+    "description": "A thick, chewy cookie packed with chocolate chips.",
+    "category": "bakery",
+    "price": 2.75,
+    "sizes": ["one size"],
+    "options": [],
+    "allergens": ["gluten", "milk", "egg"],
+    "available": true
+  },
+  {
+    "id": "avocado-toast",
+    "name": "Avocado Toast",
+    "description": "Mashed avocado on toasted sourdough with chili flakes and a squeeze of lemon.",
+    "category": "food",
+    "price": 7.50,
+    "sizes": ["one size"],
+    "options": ["add egg", "add feta"],
+    "allergens": ["gluten"],
+    "available": true
+  },
+  {
+    "id": "turkey-sandwich",
+    "name": "Turkey & Swiss Sandwich",
+    "description": "Roasted turkey, Swiss cheese, lettuce, and tomato on multigrain bread.",
+    "category": "food",
+    "price": 8.50,
+    "sizes": ["one size"],
+    "options": ["no cheese", "add bacon"],
+    "allergens": ["gluten", "milk"],
+    "available": true
+  },
+  {
+    "id": "seasonal-fruit-cup",
+    "name": "Seasonal Fruit Cup",
+    "description": "A rotating mix of fresh seasonal fruit.",
+    "category": "food",
+    "price": 4.00,
+    "sizes": ["one size"],
+    "options": [],
+    "allergens": [],
+    "available": false
+  }
+]

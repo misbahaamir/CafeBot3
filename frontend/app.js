@@ -7,7 +7,8 @@
   const input = document.getElementById('chat-input');
   const messages = document.getElementById('chat-messages');
 
-  const MOCK_REPLY = "Hi! I’m CafeBot. My AI brain isn’t connected yet.";
+  const HISTORY_LIMIT = 10;
+  let conversationHistory = [];
 
   function openChat() {
     widget.classList.add('is-open');
@@ -36,9 +37,16 @@
     bubble.textContent = text;
     messages.appendChild(bubble);
     messages.scrollTop = messages.scrollHeight;
+    return bubble;
   }
 
-  function handleSend(event) {
+  function showTypingIndicator() {
+    const bubble = addBubble('CafeBot is typing…', 'bot');
+    bubble.classList.add('chat-bubble-typing');
+    return bubble;
+  }
+
+  async function handleSend(event) {
     event.preventDefault();
     const text = input.value.trim();
     if (!text) return;
@@ -46,9 +54,32 @@
     addBubble(text, 'user');
     input.value = '';
 
-    window.setTimeout(function () {
-      addBubble(MOCK_REPLY, 'bot');
-    }, 500);
+    const typingBubble = showTypingIndicator();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          conversationHistory: conversationHistory.slice(-HISTORY_LIMIT),
+        }),
+      });
+
+      const data = await res.json();
+      typingBubble.remove();
+
+      if (!res.ok) {
+        addBubble(data.reply || "Sorry, something went wrong. Please try again.", 'bot');
+        return;
+      }
+
+      addBubble(data.reply, 'bot');
+      conversationHistory = data.conversationHistory || conversationHistory;
+    } catch (err) {
+      typingBubble.remove();
+      addBubble("Sorry, I'm having trouble connecting right now. Please check your connection and try again.", 'bot');
+    }
   }
 
   toggleBtn.addEventListener('click', toggleChat);

@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8791", "--directory", "frontend"],
       "port": 8791
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["backend/server.js"],
+      "port": 3000
     }
   ]
 }
