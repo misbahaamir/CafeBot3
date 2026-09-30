@@ -844,6 +844,19 @@ app.get('/api/staff/orders', (req, res) => {
   res.json(orderStore.readAll());
 });
 
+app.get('/api/staff/orders/:id/history', (req, res) => {
+  const params = validate(orderIdParamsSchema, req.params);
+  if (params.error) {
+    return res.status(400).json(params.error);
+  }
+
+  const result = orderStore.history(params.data.id);
+  if (result.error) {
+    return res.status(404).json(result);
+  }
+  res.json(result.entries);
+});
+
 app.patch('/api/staff/orders/:id/status', (req, res) => {
   const params = validate(orderIdParamsSchema, req.params);
   if (params.error) {

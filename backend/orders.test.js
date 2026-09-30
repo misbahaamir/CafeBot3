@@ -102,7 +102,7 @@ test('cancel keeps the order, records the reason, and logs one CANCEL entry', ()
   assert.equal(entry.action, 'CANCEL');
   assert.equal(entry.reason, 'Customer called to cancel');
   assert.deepEqual(entry.before, { status: 'PREPARING' });
-  assert.equal(entry.after.status, 'CANCELLED');
+  assert.deepEqual(entry.after, { status: 'CANCELLED' });
 });
 
 test('completed or already-cancelled orders cannot be cancelled', () => {
@@ -136,4 +136,17 @@ test('a failed audit write rolls back a cancel', () => {
   const failingStore = createOrderStore(ordersPath, failingAuditLog);
   assert.throws(() => failingStore.cancel('order-1', 'Customer called to cancel'), /disk full/);
   assert.equal(fs.readFileSync(ordersPath, 'utf-8'), before);
+});
+
+test('history returns only that order\'s entries, newest first', () => {
+  const { store } = setup();
+  store.create(sampleOrder('order-1'), SESSION_ID);
+  store.create(sampleOrder('order-2'), SESSION_ID);
+  store.updateStatus('order-1', 'PREPARING');
+  store.cancel('order-1', 'Customer called to cancel');
+
+  const { entries } = store.history('order-1');
+  assert.deepEqual(entries.map((e) => e.action), ['CANCEL', 'STATUS_CHANGE', 'CREATE']);
+  assert.ok(entries.every((e) => e.entityId === 'order-1'));
+  assert.deepEqual(store.history('missing'), { error: 'order_not_found' });
 });

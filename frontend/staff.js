@@ -84,7 +84,72 @@ function renderOrder(order) {
     card.appendChild(cancelButton);
   }
 
+  const historyButton = document.createElement('button');
+  historyButton.className = 'history-toggle';
+  historyButton.textContent = 'History';
+  const historyPanel = document.createElement('div');
+  historyPanel.className = 'history';
+  historyPanel.hidden = true;
+  historyButton.addEventListener('click', () => toggleHistory(order.id, historyPanel));
+  card.appendChild(historyButton);
+  card.appendChild(historyPanel);
+
   return card;
+}
+
+async function toggleHistory(id, panel) {
+  if (!panel.hidden) {
+    panel.hidden = true;
+    return;
+  }
+
+  panel.textContent = 'Loading…';
+  panel.hidden = false;
+  const res = await fetch(`/api/staff/orders/${id}/history`);
+  if (!res.ok) {
+    panel.textContent = 'Could not load history.';
+    return;
+  }
+
+  const entries = await res.json();
+  panel.textContent = '';
+  const list = document.createElement('ul');
+  for (const entry of entries) {
+    list.appendChild(renderHistoryEntry(entry));
+  }
+  panel.appendChild(list);
+}
+
+function renderHistoryEntry(entry) {
+  const li = document.createElement('li');
+
+  const heading = document.createElement('div');
+  heading.className = 'history-heading';
+  heading.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${describeActor(entry)} · ${entry.action}`;
+  li.appendChild(heading);
+
+  const details = entry.action === 'CREATE' ? ['Order placed'] : describeChanges(entry.before, entry.after);
+  if (entry.reason) details.push(`Reason: ${entry.reason}`);
+  for (const text of details) {
+    const line = document.createElement('div');
+    line.textContent = text;
+    li.appendChild(line);
+  }
+
+  return li;
+}
+
+function describeActor(entry) {
+  if (entry.actorType === 'CUSTOMER') return 'Customer';
+  if (entry.actorType === 'STAFF') return entry.actorId ? `Staff (${entry.actorId})` : 'Staff';
+  return 'System';
+}
+
+function describeChanges(before, after) {
+  return Object.keys(after || {}).map((key) => {
+    const from = before && key in before ? before[key] : '(none)';
+    return `${key}: ${from} → ${after[key]}`;
+  });
 }
 
 function renderFulfillment(fulfillment) {

@@ -46,11 +46,29 @@ button {
   margin-top: 0.5rem;
 }
 
+.order button {
+  margin: 0.5rem 0.5rem 0 0;
+}
+
 .cancel-reason {
   margin-top: 0.5rem;
   color: #991b1b;
 }
 
-button.cancel {
-  margin-left: 0.5rem;
+.history {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.history ul {
+  padding-left: 1.2rem;
+}
+
+.history li {
+  margin-bottom: 0.4rem;
+}
+
+.history-heading {
+  font-weight: bold;
 }

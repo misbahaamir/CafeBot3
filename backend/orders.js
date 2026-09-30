@@ -92,13 +92,21 @@ function createOrderStore(ordersPath, auditLog) {
       entityType: 'ORDER',
       entityId: id,
       before: { status: previousStatus },
-      after: { status: CANCELLED, cancelledAt: order.cancelledAt, cancelReason: reason },
+      after: { status: CANCELLED },
       reason,
     });
     return { order };
   }
 
-  return { readAll, create, updateStatus, cancel };
+  function history(id) {
+    if (!readAll().some((o) => o.id === id)) {
+      return { error: 'order_not_found' };
+    }
+    const entries = auditLog.readAll().filter((e) => e.entityType === 'ORDER' && e.entityId === id);
+    return { entries: entries.reverse() };
+  }
+
+  return { readAll, create, updateStatus, cancel, history };
 }
 
 module.exports = { createOrderStore };
