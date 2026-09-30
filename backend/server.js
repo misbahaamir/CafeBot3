@@ -6,6 +6,13 @@ const crypto = require('crypto');
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const { applyRate, withDisplayAmounts } = require('./money');
+const {
+  ORDER_STATUS_FLOW,
+  chatRequestSchema,
+  orderIdParamsSchema,
+  orderStatusBodySchema,
+  validate,
+} = require('./validation');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -756,17 +763,17 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use(express.json());
 
 app.post('/api/chat', async (req, res) => {
-  const { message, conversationHistory } = req.body;
-  const sessionId = req.body.sessionId || crypto.randomUUID();
-
-  if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ error: 'message is required' });
+  const { data, error } = validate(chatRequestSchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
   }
+  const { message, conversationHistory } = data;
+  const sessionId = data.sessionId || crypto.randomUUID();
 
   const order = getOrderState(sessionId);
 
   try {
-    const messages = [...(conversationHistory || []), { role: 'user', content: message }];
+    const messages = [...conversationHistory, { role: 'user', content: message }];
 
     let response = await anthropic.messages.create({
       model: 'claude-sonnet-5',
@@ -807,7 +814,7 @@ app.post('/api/chat', async (req, res) => {
       sessionId,
       reply: replyText,
       conversationHistory: [
-        ...(conversationHistory || []),
+        ...conversationHistory,
         { role: 'user', content: message },
         { role: 'assistant', content: replyText },
       ],
@@ -825,7 +832,6 @@ app.post('/api/chat', async (req, res) => {
 // Serverless platforms like Vercel run functions on ephemeral, read-only-by-default
 // filesystems, so writes here are not guaranteed to persist in production — replace
 // with a real database before deploying there.
-const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
 const ordersPath = path.join(__dirname, '..', 'data', 'orders.json');
 
 function readSavedOrders() {
@@ -837,13 +843,18 @@ app.get('/api/staff/orders', (req, res) => {
 });
 
 app.patch('/api/staff/orders/:id/status', (req, res) => {
-  const { status } = req.body || {};
-  if (!ORDER_STATUS_FLOW.includes(status)) {
-    return res.status(400).json({ error: 'invalid_status' });
+  const params = validate(orderIdParamsSchema, req.params);
+  if (params.error) {
+    return res.status(400).json(params.error);
   }
+  const body = validate(orderStatusBodySchema, req.body);
+  if (body.error) {
+    return res.status(400).json(body.error);
+  }
+  const { status } = body.data;
 
   const savedOrders = readSavedOrders();
-  const order = savedOrders.find((o) => o.id === req.params.id);
+  const order = savedOrders.find((o) => o.id === params.data.id);
   if (!order) {
     return res.status(404).json({ error: 'order_not_found' });
   }
@@ -857,6 +868,16 @@ app.patch('/api/staff/orders/:id/status', (req, res) => {
   order.status = status;
   fs.writeFileSync(ordersPath, JSON.stringify(savedOrders, null, 2));
   res.json({ success: true, order });
+});
+
+// Replaces Express's default error page, which exposes a stack trace (e.g. on
+// malformed JSON bodies).
+app.use((err, req, res, next) => {
+  const status = err.status >= 400 && err.status < 500 ? err.status : 500;
+  if (status === 500) {
+    console.error(err);
+  }
+  res.status(status).json({ error: status === 500 ? 'internal_error' : err.type || 'bad_request' });
 });
 
 app.listen(PORT, () => {
