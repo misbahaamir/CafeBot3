@@ -783,7 +783,7 @@ app.post('/api/chat', async (req, res) => {
     const messages = [...conversationHistory, { role: 'user', content: message }];
 
     let response = await anthropic.messages.create({
-      model: 'claude-sonnet-5',
+      model: 'claude-sonnet-5-5',
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       tools: TOOLS,
@@ -804,7 +804,7 @@ app.post('/api/chat', async (req, res) => {
       messages.push({ role: 'user', content: toolResults });
 
       response = await anthropic.messages.create({
-        model: 'claude-sonnet-5',
+        model: 'claude-sonnet-5-5',
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         tools: TOOLS,
