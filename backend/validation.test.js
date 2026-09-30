@@ -4,6 +4,7 @@ const {
   chatRequestSchema,
   orderIdParamsSchema,
   orderStatusBodySchema,
+  cancelOrderBodySchema,
   validate,
 } = require('./validation');
 
@@ -67,4 +68,13 @@ test('order id param: must be a UUID', () => {
 test('validate reports the failing path', () => {
   const { error } = validate(chatRequestSchema, { message: 'hi', conversationHistory: [{ role: 'x', content: 'y' }] });
   assert.equal(error.issues[0].path, 'conversationHistory.0.role');
+});
+
+test('cancel reason: trimmed, 10 to 500 characters', () => {
+  assert.deepEqual(validate(cancelOrderBodySchema, { reason: '  Customer changed mind  ' }).data, {
+    reason: 'Customer changed mind',
+  });
+  for (const body of [{}, { reason: 'too short' }, { reason: '   short    ' }, { reason: 'x'.repeat(501) }, { reason: 'Long enough reason', extra: 1 }]) {
+    assert.ok(validate(cancelOrderBodySchema, body).error, JSON.stringify(body));
+  }
 });

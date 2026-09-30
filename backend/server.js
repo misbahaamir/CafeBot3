@@ -10,6 +10,7 @@ const {
   chatRequestSchema,
   orderIdParamsSchema,
   orderStatusBodySchema,
+  cancelOrderBodySchema,
   validate,
 } = require('./validation');
 const { createAuditLog } = require('./audit');
@@ -855,6 +856,26 @@ app.patch('/api/staff/orders/:id/status', (req, res) => {
   const { status } = body.data;
 
   const result = orderStore.updateStatus(params.data.id, status);
+  if (result.error === 'order_not_found') {
+    return res.status(404).json(result);
+  }
+  if (result.error) {
+    return res.status(400).json(result);
+  }
+  res.json({ success: true, order: result.order });
+});
+
+app.post('/api/staff/orders/:id/cancel', (req, res) => {
+  const params = validate(orderIdParamsSchema, req.params);
+  if (params.error) {
+    return res.status(400).json(params.error);
+  }
+  const body = validate(cancelOrderBodySchema, req.body);
+  if (body.error) {
+    return res.status(400).json(body.error);
+  }
+
+  const result = orderStore.cancel(params.data.id, body.data.reason);
   if (result.error === 'order_not_found') {
     return res.status(404).json(result);
   }

@@ -1,4 +1,6 @@
 const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
+const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
+const MIN_CANCEL_REASON_LENGTH = 10;
 
 function formatCents(cents) {
   return `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
@@ -61,13 +63,25 @@ function renderOrder(order) {
   total.textContent = `Total: ${formatCents(order.totals.totalCents)}`;
   card.appendChild(total);
 
-  const nextIndex = ORDER_STATUS_FLOW.indexOf(order.status) + 1;
-  if (nextIndex < ORDER_STATUS_FLOW.length) {
-    const nextStatus = ORDER_STATUS_FLOW[nextIndex];
+  if (order.status === 'CANCELLED') {
+    const reason = document.createElement('div');
+    reason.className = 'cancel-reason';
+    reason.textContent = `Cancelled: ${order.cancelReason}`;
+    card.appendChild(reason);
+  }
+
+  if (!FINAL_STATUSES.includes(order.status)) {
+    const nextStatus = ORDER_STATUS_FLOW[ORDER_STATUS_FLOW.indexOf(order.status) + 1];
     const button = document.createElement('button');
     button.textContent = `Advance to ${nextStatus}`;
     button.addEventListener('click', () => advanceOrder(order.id, nextStatus));
     card.appendChild(button);
+
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'cancel';
+    cancelButton.textContent = 'Cancel order';
+    cancelButton.addEventListener('click', () => cancelOrder(order.id));
+    card.appendChild(cancelButton);
   }
 
   return card;
@@ -106,6 +120,28 @@ async function advanceOrder(id, status) {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     alert(`Could not update order: ${body.error || res.status}`);
+    return;
+  }
+  loadOrders();
+}
+
+async function cancelOrder(id) {
+  const input = prompt(`Reason for cancelling (at least ${MIN_CANCEL_REASON_LENGTH} characters):`);
+  if (input === null) return;
+  const reason = input.trim();
+  if (reason.length < MIN_CANCEL_REASON_LENGTH) {
+    alert(`The reason must be at least ${MIN_CANCEL_REASON_LENGTH} characters.`);
+    return;
+  }
+
+  const res = await fetch(`/api/staff/orders/${id}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    alert(`Could not cancel order: ${body.error || res.status}`);
     return;
   }
   loadOrders();

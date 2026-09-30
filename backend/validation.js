@@ -4,6 +4,8 @@ const MAX_MESSAGE_LENGTH = 2000;
 // Matches the frontend's HISTORY_LIMIT; the history is client-supplied, so cap
 // it to bound the prompt size a single request can send to the API.
 const MAX_HISTORY_MESSAGES = 10;
+const MIN_CANCEL_REASON_LENGTH = 10;
+const MAX_CANCEL_REASON_LENGTH = 500;
 
 const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
 
@@ -29,6 +31,10 @@ const orderIdParamsSchema = z.object({ id: z.uuid() });
 
 const orderStatusBodySchema = z.object({ status: z.enum(ORDER_STATUS_FLOW) }).strict();
 
+const cancelOrderBodySchema = z
+  .object({ reason: z.string().trim().min(MIN_CANCEL_REASON_LENGTH).max(MAX_CANCEL_REASON_LENGTH) })
+  .strict();
+
 function validate(schema, value) {
   const result = schema.safeParse(value);
   if (result.success) {
@@ -47,5 +53,6 @@ module.exports = {
   chatRequestSchema,
   orderIdParamsSchema,
   orderStatusBodySchema,
+  cancelOrderBodySchema,
   validate,
 };

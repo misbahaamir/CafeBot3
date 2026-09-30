@@ -1,6 +1,9 @@
 const fs = require('fs');
 const { ORDER_STATUS_FLOW } = require('./validation');
 
+const CANCELLED = 'CANCELLED';
+const FINAL_STATUSES = ['COMPLETED', CANCELLED];
+
 function createOrderStore(ordersPath, auditLog) {
   function readAll() {
     return JSON.parse(fs.readFileSync(ordersPath, 'utf-8'));
@@ -42,6 +45,10 @@ function createOrderStore(ordersPath, auditLog) {
       return { error: 'order_not_found' };
     }
 
+    if (FINAL_STATUSES.includes(order.status)) {
+      return { error: 'invalid_transition' };
+    }
+
     const currentIndex = ORDER_STATUS_FLOW.indexOf(order.status);
     const nextIndex = ORDER_STATUS_FLOW.indexOf(status);
     if (nextIndex !== currentIndex + 1) {
@@ -63,7 +70,35 @@ function createOrderStore(ordersPath, auditLog) {
     return { order };
   }
 
-  return { readAll, create, updateStatus };
+  // Orders are never deleted; cancelling keeps the record with its reason.
+  function cancel(id, reason) {
+    const orders = readAll();
+    const order = orders.find((o) => o.id === id);
+    if (!order) {
+      return { error: 'order_not_found' };
+    }
+    if (FINAL_STATUSES.includes(order.status)) {
+      return { error: 'invalid_transition' };
+    }
+
+    const previousStatus = order.status;
+    order.status = CANCELLED;
+    order.cancelledAt = new Date().toISOString();
+    order.cancelReason = reason;
+    commit(orders, {
+      actorType: 'STAFF',
+      actorId: null,
+      action: 'CANCEL',
+      entityType: 'ORDER',
+      entityId: id,
+      before: { status: previousStatus },
+      after: { status: CANCELLED, cancelledAt: order.cancelledAt, cancelReason: reason },
+      reason,
+    });
+    return { order };
+  }
+
+  return { readAll, create, updateStatus, cancel };
 }
 
 module.exports = { createOrderStore };

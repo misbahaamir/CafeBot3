@@ -85,3 +85,55 @@ test('a failed audit write rolls back a status change', () => {
   assert.throws(() => failingStore.updateStatus('order-1', 'PREPARING'), /disk full/);
   assert.equal(fs.readFileSync(ordersPath, 'utf-8'), before);
 });
+
+test('cancel keeps the order, records the reason, and logs one CANCEL entry', () => {
+  const { store, auditLog } = setup();
+  store.create(sampleOrder(), SESSION_ID);
+  store.updateStatus('order-1', 'PREPARING');
+
+  const result = store.cancel('order-1', 'Customer called to cancel');
+
+  const [saved] = store.readAll();
+  assert.equal(result.order.status, 'CANCELLED');
+  assert.equal(saved.status, 'CANCELLED');
+  assert.equal(saved.cancelReason, 'Customer called to cancel');
+  assert.ok(!Number.isNaN(Date.parse(saved.cancelledAt)));
+  const entry = auditLog.readAll()[2];
+  assert.equal(entry.action, 'CANCEL');
+  assert.equal(entry.reason, 'Customer called to cancel');
+  assert.deepEqual(entry.before, { status: 'PREPARING' });
+  assert.equal(entry.after.status, 'CANCELLED');
+});
+
+test('completed or already-cancelled orders cannot be cancelled', () => {
+  const { store, auditLog } = setup();
+  store.create({ ...sampleOrder('done'), status: 'COMPLETED' }, SESSION_ID);
+  store.create(sampleOrder('twice'), SESSION_ID);
+  store.cancel('twice', 'Out of oat milk today');
+
+  assert.deepEqual(store.cancel('done', 'Too late to cancel'), { error: 'invalid_transition' });
+  assert.deepEqual(store.cancel('twice', 'Second cancel attempt'), { error: 'invalid_transition' });
+  assert.deepEqual(store.cancel('missing', 'No such order here'), { error: 'order_not_found' });
+  assert.equal(auditLog.readAll().length, 3);
+});
+
+test('a cancelled order cannot be moved back into the status flow', () => {
+  const { store } = setup();
+  store.create(sampleOrder(), SESSION_ID);
+  store.cancel('order-1', 'Customer called to cancel');
+
+  for (const status of ['NEW', 'PREPARING', 'READY', 'COMPLETED']) {
+    assert.deepEqual(store.updateStatus('order-1', status), { error: 'invalid_transition' });
+  }
+  assert.equal(store.readAll()[0].status, 'CANCELLED');
+});
+
+test('a failed audit write rolls back a cancel', () => {
+  const { ordersPath, store } = setup();
+  store.create(sampleOrder(), SESSION_ID);
+  const before = fs.readFileSync(ordersPath, 'utf-8');
+
+  const failingStore = createOrderStore(ordersPath, failingAuditLog);
+  assert.throws(() => failingStore.cancel('order-1', 'Customer called to cancel'), /disk full/);
+  assert.equal(fs.readFileSync(ordersPath, 'utf-8'), before);
+});

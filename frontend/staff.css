@@ -34,6 +34,7 @@ button {
 .status-PREPARING { background: #bfdbfe; }
 .status-READY { background: #bbf7d0; }
 .status-COMPLETED { background: #d1d5db; }
+.status-CANCELLED { background: #fecaca; }
 
 .items {
   margin: 0.5rem 0;
@@ -43,4 +44,13 @@ button {
 .total {
   font-weight: bold;
   margin-top: 0.5rem;
+}
+
+.cancel-reason {
+  margin-top: 0.5rem;
+  color: #991b1b;
+}
+
+button.cancel {
+  margin-left: 0.5rem;
 }
