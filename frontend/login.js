@@ -18,6 +18,12 @@ form.addEventListener('submit', async (event) => {
     window.location.href = 'staff.html';
     return;
   }
-  errorEl.textContent = res.status === 401 || res.status === 400 ? 'Incorrect username or password.' : 'Sign-in failed. Please try again.';
+  if (res.status === 401 || res.status === 400) {
+    errorEl.textContent = 'Incorrect username or password.';
+  } else if (res.status === 429) {
+    errorEl.textContent = 'Too many sign-in attempts. Please wait a few minutes and try again.';
+  } else {
+    errorEl.textContent = 'Sign-in failed. Please try again.';
+  }
   errorEl.hidden = false;
 });

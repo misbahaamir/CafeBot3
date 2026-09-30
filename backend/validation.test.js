@@ -5,6 +5,7 @@ const {
   orderIdParamsSchema,
   orderStatusBodySchema,
   cancelOrderBodySchema,
+  toolInputSchemas,
   validate,
 } = require('./validation');
 
@@ -77,4 +78,17 @@ test('cancel reason: trimmed, 10 to 500 characters', () => {
   for (const body of [{}, { reason: 'too short' }, { reason: '   short    ' }, { reason: 'x'.repeat(501) }, { reason: 'Long enough reason', extra: 1 }]) {
     assert.ok(validate(cancelOrderBodySchema, body).error, JSON.stringify(body));
   }
+});
+
+test('tool inputs reject out-of-range quantities and oversized fields', () => {
+  const { addItemToCart, removeItem, setDeliveryDetails, finalizeOrder } = toolInputSchemas;
+  assert.ok(validate(addItemToCart, { itemId: 'latte', quantity: 20 }).data);
+  for (const quantity of [0, 21, 1e20, 1.5, '2']) {
+    assert.ok(validate(addItemToCart, { itemId: 'latte', quantity }).error, String(quantity));
+  }
+  assert.ok(validate(addItemToCart, { itemId: 'latte', options: Array(11).fill('oat') }).error);
+  assert.ok(validate(removeItem, { itemId: 'latte', currentOptions: 5 }).error);
+  assert.ok(validate(setDeliveryDetails, { address: 'x'.repeat(201) }).error);
+  assert.ok(validate(finalizeOrder, {}).error);
+  assert.ok(validate(finalizeOrder, { confirmed: 'yes' }).error);
 });

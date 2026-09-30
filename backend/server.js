@@ -12,6 +12,7 @@ const {
   orderStatusBodySchema,
   cancelOrderBodySchema,
   loginBodySchema,
+  toolInputSchemas,
   validate,
 } = require('./validation');
 const { createAuditLog } = require('./audit');
@@ -19,6 +20,7 @@ const { createOrderStore } = require('./orders');
 const { createStaffStore } = require('./staff');
 const { createSessionStore } = require('./sessions');
 const { permissionsFor } = require('./permissions');
+const { createRateLimiter } = require('./rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +44,12 @@ const SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}\n\n## Menu Data\n\nThis is the comp
 
 // In-memory only — no database. State resets on server restart.
 const orderSessions = new Map();
+// Carts nobody has touched for this long are dropped, so abandoned chats
+// don't hold memory until the next restart.
+const CART_IDLE_TTL_MS = 2 * 60 * 60 * 1000;
+const MAX_CART_LINES = 20;
+// Bounds the API calls (and cost) one chat message can trigger.
+const MAX_TOOL_ROUNDS = 10;
 
 function createOrderState() {
   return {
@@ -59,10 +67,16 @@ function createOrderState() {
 }
 
 function getOrderState(sessionId) {
-  if (!orderSessions.has(sessionId)) {
-    orderSessions.set(sessionId, createOrderState());
+  const now = Date.now();
+  for (const [id, entry] of orderSessions) {
+    if (now - entry.lastUsedAt >= CART_IDLE_TTL_MS) orderSessions.delete(id);
   }
-  return orderSessions.get(sessionId);
+  if (!orderSessions.has(sessionId)) {
+    orderSessions.set(sessionId, { order: createOrderState(), lastUsedAt: now });
+  }
+  const entry = orderSessions.get(sessionId);
+  entry.lastUsedAt = now;
+  return entry.order;
 }
 
 const TOOLS = [
@@ -228,6 +242,10 @@ function addItemToCart(order, input) {
   const item = MENU.find((m) => m.id === itemId && m.available);
   if (!item) {
     return { error: 'item_not_found' };
+  }
+
+  if (order.items.length >= MAX_CART_LINES) {
+    return { error: 'cart_full', maxLines: MAX_CART_LINES };
   }
 
   if (item.sizes.length > 1 && !size) {
@@ -734,42 +752,77 @@ function finalizeOrder(order, input, sessionId) {
 }
 
 function runTool(block, order, sessionId) {
+  if (!Object.hasOwn(toolInputSchemas, block.name)) {
+    throw new Error(`Unknown tool: ${block.name}`);
+  }
+  const { data: input, error } = validate(toolInputSchemas[block.name], block.input);
+  if (error) {
+    return error;
+  }
+
   switch (block.name) {
     case 'getMenu':
       return getMenu();
     case 'addItemToCart':
-      return addItemToCart(order, block.input);
+      return addItemToCart(order, input);
     case 'modifyItem':
-      return modifyItem(order, block.input);
+      return modifyItem(order, input);
     case 'removeItem':
-      return removeItem(order, block.input);
+      return removeItem(order, input);
     case 'viewCart':
       return viewCart(order);
     case 'getRecommendations':
       return getRecommendations(order);
     case 'setPickupDetails':
-      return setPickupDetails(order, block.input);
+      return setPickupDetails(order, input);
     case 'setDeliveryDetails':
-      return setDeliveryDetails(order, block.input);
+      return setDeliveryDetails(order, input);
     case 'confirmDeliveryAddress':
-      return confirmDeliveryAddress(order, block.input);
+      return confirmDeliveryAddress(order, input);
     case 'getOrderSummary':
       return getOrderSummary(order);
     case 'finalizeOrder':
-      return finalizeOrder(order, block.input, sessionId);
+      return finalizeOrder(order, input, sessionId);
     case 'getOrderTotal':
       return getOrderTotal(order);
     case 'applyPromotion':
-      return applyPromotion(order, block.input);
-    default:
-      throw new Error(`Unknown tool: ${block.name}`);
+      return applyPromotion(order, input);
   }
 }
+
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set({
+    // Every script, style, and request on these pages is same-origin, with no
+    // inline scripts or style attributes, so nothing else needs allowing.
+    'Content-Security-Policy':
+      "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+  });
+  next();
+});
+
+// Keyed by req.ip, which is the socket address until 'trust proxy' is set for
+// a deployment behind a proxy.
+function rateLimit(limiter) {
+  return (req, res, next) => {
+    const { allowed, retryAfterMs } = limiter.take(req.ip);
+    if (!allowed) {
+      res.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+      return res.status(429).json({ error: 'too_many_requests' });
+    }
+    next();
+  };
+}
+const chatLimiter = createRateLimiter({ limit: 20, windowMs: 60 * 1000 });
+const loginLimiter = createRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
 
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use(express.json());
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', rateLimit(chatLimiter), async (req, res) => {
   const { data, error } = validate(chatRequestSchema, req.body);
   if (error) {
     return res.status(400).json(error);
@@ -790,7 +843,12 @@ app.post('/api/chat', async (req, res) => {
       messages,
     });
 
+    let toolRounds = 0;
     while (response.stop_reason === 'tool_use') {
+      toolRounds += 1;
+      if (toolRounds > MAX_TOOL_ROUNDS) {
+        throw new Error(`Exceeded ${MAX_TOOL_ROUNDS} tool rounds for one message`);
+      }
       messages.push({ role: 'assistant', content: response.content });
 
       const toolResults = response.content
@@ -855,7 +913,7 @@ function readSessionToken(req) {
   return null;
 }
 
-app.post('/api/staff/login', (req, res) => {
+app.post('/api/staff/login', rateLimit(loginLimiter), (req, res) => {
   const { data, error } = validate(loginBodySchema, req.body);
   if (error) {
     return res.status(400).json(error);
