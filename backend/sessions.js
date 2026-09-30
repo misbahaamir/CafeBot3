@@ -4,9 +4,9 @@ const crypto = require('crypto');
 function createSessionStore({ ttlMs, now = Date.now }) {
   const sessions = new Map();
 
-  function create(username) {
+  function create(username, role) {
     const token = crypto.randomBytes(32).toString('base64url');
-    sessions.set(token, { username, expiresAt: now() + ttlMs });
+    sessions.set(token, { username, role, expiresAt: now() + ttlMs });
     return token;
   }
 
@@ -19,7 +19,7 @@ function createSessionStore({ ttlMs, now = Date.now }) {
       sessions.delete(token);
       return null;
     }
-    return { username: session.username };
+    return { username: session.username, role: session.role };
   }
 
   function destroy(token) {

@@ -18,6 +18,7 @@ const { createAuditLog } = require('./audit');
 const { createOrderStore } = require('./orders');
 const { createStaffStore } = require('./staff');
 const { createSessionStore } = require('./sessions');
+const { permissionsFor } = require('./permissions');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -875,14 +876,14 @@ app.post('/api/staff/login', (req, res) => {
     after: null,
     reason: null,
   });
-  res.cookie(SESSION_COOKIE, sessionStore.create(member.username), {
+  res.cookie(SESSION_COOKIE, sessionStore.create(member.username, member.role), {
     httpOnly: true,
     sameSite: 'strict',
     secure: req.secure,
     maxAge: SESSION_TTL_MS,
     path: '/',
   });
-  res.json({ username: member.username });
+  res.json({ username: member.username, role: member.role });
 });
 
 app.post('/api/staff/logout', (req, res) => {
@@ -902,11 +903,16 @@ app.use('/api/staff', (req, res, next) => {
 });
 
 app.get('/api/staff/me', (req, res) => {
-  res.json({ username: req.staff.username });
+  const { username, role } = req.staff;
+  res.json({ username, role, permissions: permissionsFor(role) });
 });
 
 app.get('/api/staff/orders', (req, res) => {
-  res.json(orderStore.readAll());
+  const result = orderStore.list(req.staff);
+  if (result.error) {
+    return res.status(403).json(result);
+  }
+  res.json(result.orders);
 });
 
 app.get('/api/staff/orders/:id/history', (req, res) => {
@@ -915,7 +921,10 @@ app.get('/api/staff/orders/:id/history', (req, res) => {
     return res.status(400).json(params.error);
   }
 
-  const result = orderStore.history(params.data.id);
+  const result = orderStore.history(params.data.id, req.staff);
+  if (result.error === 'forbidden') {
+    return res.status(403).json(result);
+  }
   if (result.error) {
     return res.status(404).json(result);
   }
@@ -933,7 +942,10 @@ app.patch('/api/staff/orders/:id/status', (req, res) => {
   }
   const { status } = body.data;
 
-  const result = orderStore.updateStatus(params.data.id, status, req.staff.username);
+  const result = orderStore.updateStatus(params.data.id, status, req.staff);
+  if (result.error === 'forbidden') {
+    return res.status(403).json(result);
+  }
   if (result.error === 'order_not_found') {
     return res.status(404).json(result);
   }
@@ -953,7 +965,10 @@ app.post('/api/staff/orders/:id/cancel', (req, res) => {
     return res.status(400).json(body.error);
   }
 
-  const result = orderStore.cancel(params.data.id, body.data.reason, req.staff.username);
+  const result = orderStore.cancel(params.data.id, body.data.reason, req.staff);
+  if (result.error === 'forbidden') {
+    return res.status(403).json(result);
+  }
   if (result.error === 'order_not_found') {
     return res.status(404).json(result);
   }

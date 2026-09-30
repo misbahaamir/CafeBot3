@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { ORDER_STATUS_FLOW } = require('./validation');
+const { can } = require('./permissions');
 
 const CANCELLED = 'CANCELLED';
 const FINAL_STATUSES = ['COMPLETED', CANCELLED];
@@ -38,7 +39,17 @@ function createOrderStore(ordersPath, auditLog) {
     return order;
   }
 
-  function updateStatus(id, status, staffUsername) {
+  function list(staff) {
+    if (!can(staff.role, 'orders:view')) {
+      return { error: 'forbidden' };
+    }
+    return { orders: readAll() };
+  }
+
+  function updateStatus(id, status, staff) {
+    if (!can(staff.role, 'orders:advance')) {
+      return { error: 'forbidden' };
+    }
     const orders = readAll();
     const order = orders.find((o) => o.id === id);
     if (!order) {
@@ -59,7 +70,7 @@ function createOrderStore(ordersPath, auditLog) {
     order.status = status;
     commit(orders, {
       actorType: 'STAFF',
-      actorId: staffUsername,
+      actorId: staff.username,
       action: 'STATUS_CHANGE',
       entityType: 'ORDER',
       entityId: id,
@@ -71,7 +82,10 @@ function createOrderStore(ordersPath, auditLog) {
   }
 
   // Orders are never deleted; cancelling keeps the record with its reason.
-  function cancel(id, reason, staffUsername) {
+  function cancel(id, reason, staff) {
+    if (!can(staff.role, 'orders:cancel')) {
+      return { error: 'forbidden' };
+    }
     const orders = readAll();
     const order = orders.find((o) => o.id === id);
     if (!order) {
@@ -87,7 +101,7 @@ function createOrderStore(ordersPath, auditLog) {
     order.cancelReason = reason;
     commit(orders, {
       actorType: 'STAFF',
-      actorId: staffUsername,
+      actorId: staff.username,
       action: 'CANCEL',
       entityType: 'ORDER',
       entityId: id,
@@ -98,7 +112,10 @@ function createOrderStore(ordersPath, auditLog) {
     return { order };
   }
 
-  function history(id) {
+  function history(id, staff) {
+    if (!can(staff.role, 'orders:view')) {
+      return { error: 'forbidden' };
+    }
     if (!readAll().some((o) => o.id === id)) {
       return { error: 'order_not_found' };
     }
@@ -106,7 +123,7 @@ function createOrderStore(ordersPath, auditLog) {
     return { entries: entries.reverse() };
   }
 
-  return { readAll, create, updateStatus, cancel, history };
+  return { list, create, updateStatus, cancel, history };
 }
 
 module.exports = { createOrderStore };

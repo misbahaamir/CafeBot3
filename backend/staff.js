@@ -1,5 +1,6 @@
 const fs = require('fs');
 const crypto = require('crypto');
+const { ROLES } = require('./permissions');
 
 const KEY_LENGTH = 64;
 const MIN_PASSWORD_LENGTH = 12;
@@ -22,12 +23,15 @@ function createStaffStore(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
 
-  function add(username, password) {
+  function add(username, password, role) {
     if (!USERNAME_PATTERN.test(username)) {
       throw new Error('Username must be 3-32 characters: lowercase letters, digits, "_", "." or "-".');
     }
     if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
       throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    }
+    if (!ROLES.includes(role)) {
+      throw new Error(`Role must be one of: ${ROLES.join(', ')}.`);
     }
     const staff = readAll();
     if (staff.some((s) => s.username === username)) {
@@ -37,12 +41,13 @@ function createStaffStore(filePath) {
     const salt = crypto.randomBytes(16);
     staff.push({
       username,
+      role,
       salt: salt.toString('base64'),
       passwordHash: hashPassword(password, salt).toString('base64'),
       createdAt: new Date().toISOString(),
     });
     fs.writeFileSync(filePath, JSON.stringify(staff, null, 2), { mode: 0o600 });
-    return { username };
+    return { username, role };
   }
 
   function verify(username, password) {
@@ -50,7 +55,7 @@ function createStaffStore(filePath) {
     const salt = member ? Buffer.from(member.salt, 'base64') : DUMMY_SALT;
     const expected = member ? Buffer.from(member.passwordHash, 'base64') : DUMMY_HASH;
     const matches = crypto.timingSafeEqual(hashPassword(password, salt), expected);
-    return member && matches ? { username: member.username } : null;
+    return member && matches ? { username: member.username, role: member.role } : null;
   }
 
   return { add, verify };

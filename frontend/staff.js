@@ -2,6 +2,10 @@ const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
 const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
 const MIN_CANCEL_REASON_LENGTH = 10;
 
+// Filled from /api/staff/me. Only used to hide buttons; the server enforces
+// the same permissions on every request.
+let staffPermissions = [];
+
 function formatCents(cents) {
   return `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }
@@ -86,7 +90,9 @@ function renderOrder(order) {
     button.textContent = `Advance to ${nextStatus}`;
     button.addEventListener('click', () => advanceOrder(order.id, nextStatus));
     card.appendChild(button);
+  }
 
+  if (!FINAL_STATUSES.includes(order.status) && staffPermissions.includes('orders:cancel')) {
     const cancelButton = document.createElement('button');
     cancelButton.className = 'cancel';
     cancelButton.textContent = 'Cancel order';
@@ -224,8 +230,9 @@ async function cancelOrder(id) {
 
 async function showSignedInUser() {
   const res = await staffFetch('/api/staff/me');
-  const { username } = await res.json();
-  document.getElementById('signed-in-as').textContent = `Signed in as ${username}`;
+  const { username, role, permissions } = await res.json();
+  staffPermissions = permissions;
+  document.getElementById('signed-in-as').textContent = `Signed in as ${username} (${role})`;
 }
 
 async function signOut() {
@@ -235,5 +242,4 @@ async function signOut() {
 
 document.getElementById('refresh').addEventListener('click', loadOrders);
 document.getElementById('sign-out').addEventListener('click', signOut);
-showSignedInUser();
-loadOrders();
+showSignedInUser().then(loadOrders);

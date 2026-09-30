@@ -14,9 +14,9 @@ function tempStaffPath() {
 
 test('verify accepts the right password and rejects wrong ones', () => {
   const store = createStaffStore(tempStaffPath());
-  store.add('barista', PASSWORD);
+  store.add('barista', PASSWORD, 'BARISTA');
 
-  assert.deepEqual(store.verify('barista', PASSWORD), { username: 'barista' });
+  assert.deepEqual(store.verify('barista', PASSWORD), { username: 'barista', role: 'BARISTA' });
   assert.equal(store.verify('barista', 'correct horse battery!'), null);
   assert.equal(store.verify('barista', ''), null);
 });
@@ -25,15 +25,15 @@ test('verify rejects unknown usernames, including when no staff file exists', ()
   const filePath = tempStaffPath();
   assert.equal(createStaffStore(filePath).verify('nobody', PASSWORD), null);
 
-  createStaffStore(filePath).add('barista', PASSWORD);
+  createStaffStore(filePath).add('barista', PASSWORD, 'BARISTA');
   assert.equal(createStaffStore(filePath).verify('nobody', PASSWORD), null);
 });
 
 test('the staff file never contains the plaintext password, and salts differ', () => {
   const filePath = tempStaffPath();
   const store = createStaffStore(filePath);
-  store.add('alice', PASSWORD);
-  store.add('bob', PASSWORD);
+  store.add('alice', PASSWORD, 'BARISTA');
+  store.add('bob', PASSWORD, 'BARISTA');
 
   const raw = fs.readFileSync(filePath, 'utf-8');
   assert.ok(!raw.includes(PASSWORD));
@@ -44,15 +44,23 @@ test('the staff file never contains the plaintext password, and salts differ', (
 
 test('the staff file is readable by its owner only', { skip: process.platform === 'win32' }, () => {
   const filePath = tempStaffPath();
-  createStaffStore(filePath).add('barista', PASSWORD);
+  createStaffStore(filePath).add('barista', PASSWORD, 'BARISTA');
   assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
 });
 
 test('add rejects weak passwords, bad usernames, and duplicates', () => {
   const store = createStaffStore(tempStaffPath());
-  assert.throws(() => store.add('barista', 'short'), /at least 12/);
-  assert.throws(() => store.add('Bad Name', PASSWORD), /Username/);
-  assert.throws(() => store.add('ab', PASSWORD), /Username/);
-  store.add('barista', PASSWORD);
-  assert.throws(() => store.add('barista', PASSWORD), /already exists/);
+  assert.throws(() => store.add('barista', 'short', 'BARISTA'), /at least 12/);
+  assert.throws(() => store.add('Bad Name', PASSWORD, 'BARISTA'), /Username/);
+  assert.throws(() => store.add('ab', PASSWORD, 'BARISTA'), /Username/);
+  store.add('barista', PASSWORD, 'BARISTA');
+  assert.throws(() => store.add('barista', PASSWORD, 'BARISTA'), /already exists/);
+});
+
+test('add requires a known role and verify returns it', () => {
+  const store = createStaffStore(tempStaffPath());
+  assert.throws(() => store.add('owner', PASSWORD, 'OWNER'), /Role must be one of: MANAGER, BARISTA/);
+  assert.throws(() => store.add('owner', PASSWORD), /Role must be one of/);
+  store.add('maria', PASSWORD, 'MANAGER');
+  assert.deepEqual(store.verify('maria', PASSWORD), { username: 'maria', role: 'MANAGER' });
 });
