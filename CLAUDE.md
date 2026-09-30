@@ -22,6 +22,19 @@ chat/ordering assistant.
 - No dead code, commented-out code, or placeholder functions.
 - Add comments only to explain non-obvious *why*, never to restate *what*.
 
+## Money Rules
+
+- Store and compute all amounts as integer cents; never use floating point
+  for money.
+- Totals, tax, delivery fees, and discounts are computed by deterministic
+  backend code, never by the language model.
+
+## Record Rules
+
+- Saved orders are never hard-deleted; they are cancelled with a reason.
+- Every order creation, status change, and cancellation writes an entry to
+  an append-only audit log.
+
 ## Security Rules
 
 - Never commit secrets, API keys, or credentials — use environment variables
