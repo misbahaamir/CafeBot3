@@ -43,4 +43,18 @@ function withDisplayAmounts(value) {
   return value;
 }
 
-module.exports = { formatCents, applyRate, withDisplayAmounts };
+// Parses what a person typed ("1,750", "$1750.5", "0.99") into cents with
+// string handling only, so no floating-point value is ever involved. Returns
+// null for anything else, including negatives and more than two decimals.
+const DOLLARS_PATTERN = /^\$?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?$/;
+
+function parseDollarsToCents(text) {
+  const match = DOLLARS_PATTERN.exec(String(text).trim());
+  if (!match) {
+    return null;
+  }
+  const cents = Number(match[1].replaceAll(',', '')) * 100 + Number((match[2] || '').padEnd(2, '0'));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
+module.exports = { formatCents, applyRate, withDisplayAmounts, parseDollarsToCents };

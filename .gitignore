@@ -29,3 +29,7 @@ data/office.json
 # Maintenance and viewing requests (contact details of the people asking)
 data/maintenance-requests.json
 data/viewing-requests.json
+
+# Income and expense records
+data/income.json
+data/expenses.json

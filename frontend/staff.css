@@ -112,3 +112,122 @@ button {
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
+
+.assistant,
+.entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 480px;
+}
+
+.entry-form {
+  margin-top: 1rem;
+}
+
+.entry-form label,
+.assistant label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.entry-form .kind label {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 0.3rem;
+  margin-right: 1rem;
+}
+
+.entry-form .income-only,
+.entry-form .expense-only {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.entry-form [hidden] {
+  display: none !important;
+}
+
+.entry-form input,
+.entry-form select,
+.entry-form textarea,
+.assistant textarea {
+  font: inherit;
+  padding: 0.35rem;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.entry-form .warning {
+  display: block;
+  color: #92400e;
+}
+
+.help {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.draft-banner {
+  margin: 0;
+  padding: 0.5rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+}
+
+.form-error {
+  color: #b91c1c;
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filters input,
+.filters select {
+  font: inherit;
+  max-width: 100%;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 0.2rem 1.5rem;
+}
+
+.totals dd {
+  margin: 0;
+  font-weight: bold;
+}
+
+.entry {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin: 0.6rem 0;
+  overflow-wrap: anywhere;
+}
+
+.entry-title {
+  font-weight: bold;
+}
+
+.entry-void {
+  color: #777;
+}
+
+.entry-void .entry-title {
+  text-decoration: line-through;
+}
+
+.void-reason {
+  color: #b91c1c;
+}

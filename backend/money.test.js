@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { formatCents, applyRate, withDisplayAmounts } = require('./money');
+const { formatCents, applyRate, withDisplayAmounts, parseDollarsToCents } = require('./money');
 
 test('formatCents pads cents and handles zero and negatives', () => {
   assert.equal(formatCents(450), '$4.50');
@@ -57,4 +57,17 @@ test('withDisplayAmounts does not mutate its input', () => {
   const input = { priceCents: 300 };
   withDisplayAmounts(input);
   assert.deepEqual(input, { priceCents: 300 });
+});
+
+test('parseDollarsToCents reads typed amounts exactly and rejects anything unclear', () => {
+  assert.equal(parseDollarsToCents('1,750'), 175000);
+  assert.equal(parseDollarsToCents('$1750.5'), 175050);
+  assert.equal(parseDollarsToCents(' 0.99 '), 99);
+  assert.equal(parseDollarsToCents('0'), 0);
+  // 1.005 * 100 is 100.49999999999999 in floating point; string math avoids it.
+  assert.equal(parseDollarsToCents('1.01'), 101);
+  assert.equal(parseDollarsToCents('4.35'), 435);
+  for (const bad of ['1,75', '-5', '1.999', 'abc', '', '1 750', '1.', '.5', '99999999999999999']) {
+    assert.equal(parseDollarsToCents(bad), null, bad);
+  }
 });

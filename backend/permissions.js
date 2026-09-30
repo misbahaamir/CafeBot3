@@ -1,9 +1,9 @@
 // Only permissions that some feature checks today; later features add theirs.
 const PERMISSIONS = {
-  ADMIN: ['properties:view', 'requests:view', 'requests:manage'],
-  MANAGER: ['properties:view', 'requests:view', 'requests:manage'],
-  BOOKKEEPER: ['properties:view'],
-  ACCOUNTANT: ['properties:view'],
+  ADMIN: ['properties:view', 'requests:view', 'requests:manage', 'ledger:view', 'ledger:record'],
+  MANAGER: ['properties:view', 'requests:view', 'requests:manage', 'ledger:view', 'ledger:record'],
+  BOOKKEEPER: ['properties:view', 'ledger:view', 'ledger:record'],
+  ACCOUNTANT: ['properties:view', 'ledger:view'],
 };
 const ROLES = Object.keys(PERMISSIONS);
 

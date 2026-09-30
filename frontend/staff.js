@@ -192,6 +192,7 @@ async function showSignedInUser() {
   document.getElementById('signed-in-as').textContent = `Signed in as ${username} (${role})`;
   canManageRequests = permissions.includes('requests:manage');
   document.getElementById('requests-section').hidden = !permissions.includes('requests:view');
+  document.getElementById('ledger-link').hidden = !permissions.includes('ledger:view');
 }
 
 async function loadAll() {

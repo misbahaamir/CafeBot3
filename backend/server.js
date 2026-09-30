@@ -13,6 +13,16 @@ const { createRentalStore } = require('./rentals');
 const { createRequestStore, requestParamsSchema, statusBodySchema, cancelBodySchema } = require('./requests');
 const { loadOffice } = require('./office');
 const { createPublicAssistant, chatRequestSchema } = require('./chat');
+const {
+  createLedger,
+  incomeInputSchema,
+  expenseInputSchema,
+  entryParamsSchema,
+  voidBodySchema,
+  listQuerySchema,
+} = require('./ledger');
+const { createLedgerAssistant, draftRequestSchema } = require('./ledger-assistant');
+const { EXPENSE_CATEGORIES } = require('./categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +47,7 @@ const rentalStore = createRentalStore(dataDir, { today: todayInTimeZone });
 rentalStore.load();
 loadOffice(dataDir);
 const requestStore = createRequestStore(dataDir, auditLog, { rentalStore });
+const ledger = createLedger(dataDir, auditLog, { rentalStore, today: todayInTimeZone });
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -69,8 +80,13 @@ const chatLimiter = createRateLimiter({ limit: 20, windowMs: 60 * 1000 });
 // Separate from chatLimiter so one visitor can't flood staff with requests.
 const submitLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
 
+// Keyed by username: every call costs an API request.
+const draftLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const ledgerAssistant = createLedgerAssistant({ anthropic, rentalStore, today: todayInTimeZone });
 const assistant = createPublicAssistant({
-  anthropic: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+  anthropic,
   rentalStore,
   requestStore,
   loadOffice: () => loadOffice(dataDir),
@@ -212,6 +228,83 @@ app.post('/api/staff/requests/:kind/:id/cancel', (req, res) => {
     return res.status(400).json(params.error || body.error);
   }
   sendRequestResult(res, requestStore.cancel(params.data.kind, params.data.id, body.data.reason, req.staff));
+});
+
+const LEDGER_ERROR_STATUS = {
+  forbidden: 403,
+  entry_not_found: 404,
+  already_void: 409,
+  unknown_property: 400,
+  unknown_unit: 400,
+  future_date: 400,
+  treatment_not_allowed: 400,
+  not_deductible_unconfirmed: 400,
+};
+
+function sendLedgerResult(res, result) {
+  if (result.error) {
+    return res.status(LEDGER_ERROR_STATUS[result.error]).json(result);
+  }
+  res.json(result);
+}
+
+app.get('/api/staff/ledger', (req, res) => {
+  const { data, error } = validate(listQuerySchema, req.query);
+  if (error) {
+    return res.status(400).json(error);
+  }
+  sendLedgerResult(res, ledger.list(data, req.staff));
+});
+
+app.get('/api/staff/ledger/categories', (req, res) => {
+  res.json({ categories: EXPENSE_CATEGORIES });
+});
+
+app.post('/api/staff/ledger/income', (req, res) => {
+  const { data, error } = validate(incomeInputSchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
+  }
+  sendLedgerResult(res, ledger.createIncome(data, req.staff));
+});
+
+app.post('/api/staff/ledger/expense', (req, res) => {
+  const { data, error } = validate(expenseInputSchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
+  }
+  sendLedgerResult(res, ledger.createExpense(data, req.staff));
+});
+
+app.post('/api/staff/ledger/:kind/:id/void', (req, res) => {
+  const params = validate(entryParamsSchema, req.params);
+  const body = validate(voidBodySchema, req.body);
+  if (params.error || body.error) {
+    return res.status(400).json(params.error || body.error);
+  }
+  sendLedgerResult(res, ledger.voidEntry(params.data.kind, params.data.id, body.data.reason, req.staff));
+});
+
+app.post('/api/staff/ledger/draft', async (req, res) => {
+  const { data, error } = validate(draftRequestSchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
+  }
+  const { allowed, retryAfterMs } = draftLimiter.take(req.staff.username);
+  if (!allowed) {
+    res.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+    return res.status(429).json({ error: 'too_many_requests' });
+  }
+  try {
+    const result = await ledgerAssistant.draft(data, req.staff);
+    if (result.error) {
+      return res.status(result.error === 'forbidden' ? 403 : 502).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('Ledger assistant error:', err);
+    res.status(502).json({ error: 'assistant_unavailable' });
+  }
 });
 
 // Replaces Express's default error page, which exposes a stack trace (e.g. on

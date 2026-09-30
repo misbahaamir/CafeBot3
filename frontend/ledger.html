@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RentLedger — Rent &amp; expenses</title>
+  <link rel="stylesheet" href="staff.css" />
+</head>
+<body>
+  <h1>Rent &amp; expenses</h1>
+  <div class="toolbar">
+    <a href="staff.html">&larr; Staff home</a>
+    <span id="signed-in-as"></span>
+  </div>
+
+  <section id="record-section" hidden>
+    <h2>Record an entry</h2>
+    <form id="assistant-form" class="assistant">
+      <label for="assistant-input">Describe it and the assistant fills in the form for you to check:</label>
+      <textarea id="assistant-input" rows="2" maxlength="1000" placeholder="e.g. Priya paid $1,750 rent today by e-Transfer"></textarea>
+      <button type="submit" id="assistant-send">Fill in form</button>
+      <p id="assistant-status" class="meta" aria-live="polite"></p>
+    </form>
+
+    <form id="entry-form" class="entry-form" novalidate>
+      <p id="draft-banner" class="draft-banner" hidden></p>
+      <fieldset class="kind">
+        <legend>Type</legend>
+        <label><input type="radio" name="kind" value="INCOME" checked /> Income</label>
+        <label><input type="radio" name="kind" value="EXPENSE" /> Expense</label>
+      </fieldset>
+      <label>Property <select id="propertyId" required></select></label>
+      <label>Unit (optional) <select id="unitId"></select></label>
+
+      <div class="income-only">
+        <label>Income type
+          <select id="incomeType"><option value="RENT">Rent</option><option value="OTHER">Other</option></select>
+        </label>
+        <label>Paid by <input id="payer" maxlength="200" /></label>
+      </div>
+
+      <div class="expense-only" hidden>
+        <label>Category <select id="categoryCode"></select></label>
+        <p id="category-help" class="help"></p>
+        <label id="ack-label" class="warning" hidden>
+          <input type="checkbox" id="acknowledgeNotDeductible" />
+          I understand this is not deductible and will be listed separately.
+        </label>
+        <label id="treatment-label">Treatment
+          <select id="treatment">
+            <option value="">Category default</option>
+            <option value="CURRENT">Current</option>
+            <option value="CAPITAL">Capital</option>
+          </select>
+        </label>
+        <label>Paid to (vendor) <input id="vendor" maxlength="200" /></label>
+        <label>GST/HST paid <input id="gstHst" inputmode="decimal" placeholder="0.00" /></label>
+        <label>Payment method
+          <select id="paymentMethod">
+            <option value="">Choose…</option>
+            <option value="CASH">Cash</option>
+            <option value="CHEQUE">Cheque</option>
+            <option value="CREDIT_CARD">Credit card</option>
+            <option value="DEBIT">Debit</option>
+            <option value="E_TRANSFER">e-Transfer</option>
+            <option value="BANK_TRANSFER">Bank transfer</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </label>
+      </div>
+
+      <label><span id="amount-label">Amount</span> <input id="amount" inputmode="decimal" placeholder="0.00" required /></label>
+      <label><span id="date-label">Date received</span> <input type="date" id="date" required /></label>
+      <label>Notes (optional) <textarea id="notes" rows="2" maxlength="500"></textarea></label>
+      <p id="form-error" class="form-error" role="alert"></p>
+      <button type="submit">Save</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Entries</h2>
+    <div class="filters">
+      <label>Year <input type="number" id="filter-year" min="1900" max="2999" /></label>
+      <label>Property <select id="filter-property"><option value="">All properties</option></select></label>
+    </div>
+    <dl id="totals" class="totals"></dl>
+    <h3>Income</h3>
+    <div id="income-list"></div>
+    <h3>Expenses</h3>
+    <div id="expense-list"></div>
+  </section>
+
+  <p class="disclaimer">RentLedger prepares records for your accountant. It does not file with the CRA.</p>
+  <script src="ledger.js"></script>
+</body>
+</html>

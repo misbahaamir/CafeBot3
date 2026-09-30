@@ -206,4 +206,4 @@ function createRentalStore(dataDir, { today }) {
   return { load, overview, listings };
 }
 
-module.exports = { createRentalStore };
+module.exports = { createRentalStore, leaseCovers };
