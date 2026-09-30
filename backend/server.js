@@ -11,10 +11,13 @@ const {
   orderIdParamsSchema,
   orderStatusBodySchema,
   cancelOrderBodySchema,
+  loginBodySchema,
   validate,
 } = require('./validation');
 const { createAuditLog } = require('./audit');
 const { createOrderStore } = require('./orders');
+const { createStaffStore } = require('./staff');
+const { createSessionStore } = require('./sessions');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -835,10 +838,72 @@ app.post('/api/chat', async (req, res) => {
 // Serverless platforms like Vercel run functions on ephemeral, read-only-by-default
 // filesystems, so writes here are not guaranteed to persist in production — replace
 // with a real database before deploying there.
-const orderStore = createOrderStore(
-  path.join(__dirname, '..', 'data', 'orders.json'),
-  createAuditLog(path.join(__dirname, '..', 'data', 'audit-log.jsonl'))
-);
+const auditLog = createAuditLog(path.join(__dirname, '..', 'data', 'audit-log.jsonl'));
+const orderStore = createOrderStore(path.join(__dirname, '..', 'data', 'orders.json'), auditLog);
+const staffStore = createStaffStore(path.join(__dirname, '..', 'data', 'staff.json'));
+
+const SESSION_COOKIE = 'staff_session';
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const sessionStore = createSessionStore({ ttlMs: SESSION_TTL_MS });
+
+function readSessionToken(req) {
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const [name, value] = part.trim().split('=');
+    if (name === SESSION_COOKIE) return value;
+  }
+  return null;
+}
+
+app.post('/api/staff/login', (req, res) => {
+  const { data, error } = validate(loginBodySchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
+  }
+
+  const member = staffStore.verify(data.username, data.password);
+  if (!member) {
+    return res.status(401).json({ error: 'invalid_credentials' });
+  }
+
+  auditLog.append({
+    actorType: 'STAFF',
+    actorId: member.username,
+    action: 'LOGIN',
+    entityType: 'STAFF',
+    entityId: member.username,
+    before: null,
+    after: null,
+    reason: null,
+  });
+  res.cookie(SESSION_COOKIE, sessionStore.create(member.username), {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: req.secure,
+    maxAge: SESSION_TTL_MS,
+    path: '/',
+  });
+  res.json({ username: member.username });
+});
+
+app.post('/api/staff/logout', (req, res) => {
+  sessionStore.destroy(readSessionToken(req));
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.json({ success: true });
+});
+
+// Every /api/staff route registered after this point requires a signed-in staff member.
+app.use('/api/staff', (req, res, next) => {
+  const session = sessionStore.get(readSessionToken(req));
+  if (!session) {
+    return res.status(401).json({ error: 'not_signed_in' });
+  }
+  req.staff = session;
+  next();
+});
+
+app.get('/api/staff/me', (req, res) => {
+  res.json({ username: req.staff.username });
+});
 
 app.get('/api/staff/orders', (req, res) => {
   res.json(orderStore.readAll());
@@ -868,7 +933,7 @@ app.patch('/api/staff/orders/:id/status', (req, res) => {
   }
   const { status } = body.data;
 
-  const result = orderStore.updateStatus(params.data.id, status);
+  const result = orderStore.updateStatus(params.data.id, status, req.staff.username);
   if (result.error === 'order_not_found') {
     return res.status(404).json(result);
   }
@@ -888,7 +953,7 @@ app.post('/api/staff/orders/:id/cancel', (req, res) => {
     return res.status(400).json(body.error);
   }
 
-  const result = orderStore.cancel(params.data.id, body.data.reason);
+  const result = orderStore.cancel(params.data.id, body.data.reason, req.staff.username);
   if (result.error === 'order_not_found') {
     return res.status(404).json(result);
   }

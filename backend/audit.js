@@ -6,8 +6,8 @@ const entrySchema = z
   .object({
     actorType: z.enum(['CUSTOMER', 'STAFF', 'SYSTEM']),
     actorId: z.string().min(1).nullable(),
-    action: z.enum(['CREATE', 'STATUS_CHANGE', 'CANCEL']),
-    entityType: z.enum(['ORDER']),
+    action: z.enum(['CREATE', 'STATUS_CHANGE', 'CANCEL', 'LOGIN']),
+    entityType: z.enum(['ORDER', 'STAFF']),
     entityId: z.string().min(1),
     before: z.record(z.string(), z.unknown()).nullable(),
     after: z.record(z.string(), z.unknown()).nullable(),

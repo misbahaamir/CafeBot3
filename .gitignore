@@ -13,3 +13,6 @@ desktop.ini
 
 # Audit log written at runtime
 data/audit-log.jsonl
+
+# Staff accounts (password hashes)
+data/staff.json

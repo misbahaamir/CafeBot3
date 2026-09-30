@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { USERNAME_PATTERN } = require('./staff');
 
 const MAX_MESSAGE_LENGTH = 2000;
 // Matches the frontend's HISTORY_LIMIT; the history is client-supplied, so cap
@@ -35,6 +36,13 @@ const cancelOrderBodySchema = z
   .object({ reason: z.string().trim().min(MIN_CANCEL_REASON_LENGTH).max(MAX_CANCEL_REASON_LENGTH) })
   .strict();
 
+const loginBodySchema = z
+  .object({
+    username: z.string().regex(USERNAME_PATTERN),
+    password: z.string().min(1).max(200),
+  })
+  .strict();
+
 function validate(schema, value) {
   const result = schema.safeParse(value);
   if (result.success) {
@@ -54,5 +62,6 @@ module.exports = {
   orderIdParamsSchema,
   orderStatusBodySchema,
   cancelOrderBodySchema,
+  loginBodySchema,
   validate,
 };

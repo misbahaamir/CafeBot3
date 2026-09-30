@@ -6,8 +6,18 @@ function formatCents(cents) {
   return `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }
 
+// Every staff API call returns 401 once the session is gone or expired.
+async function staffFetch(url, options) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    window.location.href = 'login.html';
+    throw new Error('not_signed_in');
+  }
+  return res;
+}
+
 async function loadOrders() {
-  const res = await fetch('/api/staff/orders');
+  const res = await staffFetch('/api/staff/orders');
   const orders = await res.json();
   renderOrders(orders);
 }
@@ -105,7 +115,7 @@ async function toggleHistory(id, panel) {
 
   panel.textContent = 'Loading…';
   panel.hidden = false;
-  const res = await fetch(`/api/staff/orders/${id}/history`);
+  const res = await staffFetch(`/api/staff/orders/${id}/history`);
   if (!res.ok) {
     panel.textContent = 'Could not load history.';
     return;
@@ -177,7 +187,7 @@ function renderFulfillment(fulfillment) {
 }
 
 async function advanceOrder(id, status) {
-  const res = await fetch(`/api/staff/orders/${id}/status`, {
+  const res = await staffFetch(`/api/staff/orders/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -199,7 +209,7 @@ async function cancelOrder(id) {
     return;
   }
 
-  const res = await fetch(`/api/staff/orders/${id}/cancel`, {
+  const res = await staffFetch(`/api/staff/orders/${id}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
@@ -212,5 +222,18 @@ async function cancelOrder(id) {
   loadOrders();
 }
 
+async function showSignedInUser() {
+  const res = await staffFetch('/api/staff/me');
+  const { username } = await res.json();
+  document.getElementById('signed-in-as').textContent = `Signed in as ${username}`;
+}
+
+async function signOut() {
+  await fetch('/api/staff/logout', { method: 'POST' });
+  window.location.href = 'login.html';
+}
+
 document.getElementById('refresh').addEventListener('click', loadOrders);
+document.getElementById('sign-out').addEventListener('click', signOut);
+showSignedInUser();
 loadOrders();

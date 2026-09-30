@@ -38,7 +38,7 @@ function createOrderStore(ordersPath, auditLog) {
     return order;
   }
 
-  function updateStatus(id, status) {
+  function updateStatus(id, status, staffUsername) {
     const orders = readAll();
     const order = orders.find((o) => o.id === id);
     if (!order) {
@@ -59,7 +59,7 @@ function createOrderStore(ordersPath, auditLog) {
     order.status = status;
     commit(orders, {
       actorType: 'STAFF',
-      actorId: null,
+      actorId: staffUsername,
       action: 'STATUS_CHANGE',
       entityType: 'ORDER',
       entityId: id,
@@ -71,7 +71,7 @@ function createOrderStore(ordersPath, auditLog) {
   }
 
   // Orders are never deleted; cancelling keeps the record with its reason.
-  function cancel(id, reason) {
+  function cancel(id, reason, staffUsername) {
     const orders = readAll();
     const order = orders.find((o) => o.id === id);
     if (!order) {
@@ -87,7 +87,7 @@ function createOrderStore(ordersPath, auditLog) {
     order.cancelReason = reason;
     commit(orders, {
       actorType: 'STAFF',
-      actorId: null,
+      actorId: staffUsername,
       action: 'CANCEL',
       entityType: 'ORDER',
       entityId: id,

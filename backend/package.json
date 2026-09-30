@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "staff:add": "node add-staff.js",
     "test": "node --test"
   },
   "keywords": [],
