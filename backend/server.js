@@ -5,13 +5,14 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
+const { applyRate, withDisplayAmounts } = require('./money');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Flat rates — single configured number each, no per-item or per-jurisdiction rules.
-const TAX_RATE = 0.08;
-const DELIVERY_FEE = 3.00;
+const TAX_RATE_BASIS_POINTS = 800;
+const DELIVERY_FEE_CENTS = 300;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const BASE_SYSTEM_PROMPT = fs.readFileSync(
@@ -24,7 +25,7 @@ const MENU = JSON.parse(
 const PROMOTIONS = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'data', 'promotions.json'), 'utf-8')
 );
-const SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}\n\n## Menu Data\n\nThis is the complete, authoritative menu. Only reference items, prices, sizes, options, and allergens listed here — never invent or assume any that aren't present.\n\n${JSON.stringify(MENU, null, 2)}`;
+const SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}\n\n## Menu Data\n\nThis is the complete, authoritative menu. Only reference items, prices, sizes, options, and allergens listed here — never invent or assume any that aren't present.\n\n${JSON.stringify(withDisplayAmounts(MENU), null, 2)}`;
 
 // In-memory only — no database. State resets on server restart.
 const orderSessions = new Map();
@@ -37,7 +38,7 @@ function createOrderState() {
     pickupTime: null,
     delivery: { address: null, apartmentUnit: null, instructions: null, addressConfirmed: false },
     discount: null,
-    total: 0,
+    totalCents: 0,
     confirmed: false,
     status: 'pending',
     suggestedItemIds: [],
@@ -196,6 +197,10 @@ const TOOLS = [
   },
 ];
 
+function sumLineTotalsCents(lines) {
+  return lines.reduce((sum, line) => sum + line.lineTotalCents, 0);
+}
+
 function getMenu() {
   return MENU.filter((item) => item.available);
 }
@@ -228,7 +233,7 @@ function addItemToCart(order, input) {
   }
 
   const qty = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
-  const lineTotal = Math.round(item.price * qty * 100) / 100;
+  const lineTotalCents = item.priceCents * qty;
 
   order.items.push({
     itemId: item.id,
@@ -236,11 +241,11 @@ function addItemToCart(order, input) {
     size: resolvedSize,
     quantity: qty,
     options: chosenOptions,
-    unitPrice: item.price,
-    lineTotal,
+    unitPriceCents: item.priceCents,
+    lineTotalCents,
   });
   order.discount = null;
-  order.total = Math.round(order.items.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
+  order.totalCents = sumLineTotalsCents(order.items);
 
   return { success: true, addedItem: order.items[order.items.length - 1], order };
 }
@@ -303,9 +308,9 @@ function modifyItem(order, input) {
     target.quantity = quantity;
   }
 
-  target.lineTotal = Math.round(target.unitPrice * target.quantity * 100) / 100;
+  target.lineTotalCents = target.unitPriceCents * target.quantity;
   order.discount = null;
-  order.total = Math.round(order.items.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
+  order.totalCents = sumLineTotalsCents(order.items);
 
   return { success: true, updatedItem: target, order };
 }
@@ -340,11 +345,11 @@ function removeItem(order, input) {
     order.items = order.items.filter((line) => line !== target);
   } else {
     target.quantity -= removeQty;
-    target.lineTotal = Math.round(target.unitPrice * target.quantity * 100) / 100;
+    target.lineTotalCents = target.unitPriceCents * target.quantity;
   }
 
   order.discount = null;
-  order.total = Math.round(order.items.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
+  order.totalCents = sumLineTotalsCents(order.items);
 
   return { success: true, removedQuantity: removeQty, order };
 }
@@ -397,7 +402,7 @@ function getRecommendations(order) {
       itemId: item.id,
       name: item.name,
       description: item.description,
-      price: item.price,
+      priceCents: item.priceCents,
     })),
   };
 }
@@ -519,19 +524,19 @@ function confirmDeliveryAddress(order, input) {
 }
 
 function getOrderTotal(order) {
-  const subtotal = Math.round(order.items.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
-  const discountAmount = order.discount ? order.discount.amount : 0;
-  const discountedSubtotal = Math.round((subtotal - discountAmount) * 100) / 100;
-  const tax = Math.round(discountedSubtotal * TAX_RATE * 100) / 100;
-  const deliveryFee = order.orderType === 'delivery' ? DELIVERY_FEE : 0;
-  const total = Math.round((discountedSubtotal + tax + deliveryFee) * 100) / 100;
+  const subtotalCents = sumLineTotalsCents(order.items);
+  const discountCents = order.discount ? order.discount.amountCents : 0;
+  const discountedSubtotalCents = subtotalCents - discountCents;
+  const taxCents = applyRate(discountedSubtotalCents, TAX_RATE_BASIS_POINTS);
+  const deliveryFeeCents = order.orderType === 'delivery' ? DELIVERY_FEE_CENTS : 0;
+  const totalCents = discountedSubtotalCents + taxCents + deliveryFeeCents;
 
   return {
-    subtotal,
-    discount: order.discount ? { promotionId: order.discount.promotionId, name: order.discount.name, amount: discountAmount } : null,
-    tax,
-    deliveryFee,
-    total,
+    subtotalCents,
+    discount: order.discount ? { promotionId: order.discount.promotionId, name: order.discount.name, amountCents: discountCents } : null,
+    taxCents,
+    deliveryFeeCents,
+    totalCents,
   };
 }
 
@@ -541,14 +546,11 @@ function isWithinTimeWindow(timeWindow) {
   return current >= timeWindow.start && current < timeWindow.end;
 }
 
-function calculateDiscountAmount(promo, qualifyingLines) {
-  const amount = qualifyingLines.reduce((sum, line) => {
-    if (promo.discountType === 'percentage') {
-      return sum + line.lineTotal * (promo.discountValue / 100);
-    }
-    return sum + Math.min(promo.discountValue, line.lineTotal);
-  }, 0);
-  return Math.round(amount * 100) / 100;
+function calculateDiscountCents(promo, qualifyingLines) {
+  if (promo.discountType === 'percentage') {
+    return applyRate(sumLineTotalsCents(qualifyingLines), promo.discountPercent * 100);
+  }
+  return qualifyingLines.reduce((sum, line) => sum + Math.min(promo.discountCents, line.lineTotalCents), 0);
 }
 
 function evaluatePromotion(promo, order) {
@@ -575,7 +577,7 @@ function evaluatePromotion(promo, order) {
     }
   }
 
-  if (elig.minSpend != null && order.total < elig.minSpend) {
+  if (elig.minSpendCents != null && order.totalCents < elig.minSpendCents) {
     return { eligible: false, reason: 'below_min_spend' };
   }
 
@@ -583,7 +585,7 @@ function evaluatePromotion(promo, order) {
     return { eligible: false, reason: 'outside_time_window' };
   }
 
-  return { eligible: true, amount: calculateDiscountAmount(promo, qualifyingLines) };
+  return { eligible: true, amountCents: calculateDiscountCents(promo, qualifyingLines) };
 }
 
 function applyPromotion(order, input) {
@@ -601,7 +603,7 @@ function applyPromotion(order, input) {
         promotionId: promo.id,
         name: promo.name,
         rule: promo.rule,
-        estimatedDiscount: result.amount,
+        estimatedDiscountCents: result.amountCents,
       }));
 
     return { eligiblePromotions };
@@ -617,9 +619,8 @@ function applyPromotion(order, input) {
     return { error: 'not_eligible', reason: result.reason };
   }
 
-  order.discount = { promotionId: promo.id, name: promo.name, amount: result.amount };
-  const subtotal = order.items.reduce((sum, i) => sum + i.lineTotal, 0);
-  order.total = Math.round((subtotal - result.amount) * 100) / 100;
+  order.discount = { promotionId: promo.id, name: promo.name, amountCents: result.amountCents };
+  order.totalCents = sumLineTotalsCents(order.items) - result.amountCents;
 
   return { success: true, appliedPromotion: order.discount, order };
 }
@@ -630,8 +631,8 @@ function getOrderSummary(order) {
     quantity: line.quantity,
     size: line.size,
     options: line.options,
-    unitPrice: line.unitPrice,
-    lineTotal: line.lineTotal,
+    unitPriceCents: line.unitPriceCents,
+    lineTotalCents: line.lineTotalCents,
   }));
 
   const fulfillment = { type: order.orderType };
@@ -655,7 +656,7 @@ function getOrderSummary(order) {
       promotionId: promo.id,
       name: promo.name,
       rule: promo.rule,
-      estimatedDiscount: result.amount,
+      estimatedDiscountCents: result.amountCents,
       applied: order.discount ? order.discount.promotionId === promo.id : false,
     }));
 
@@ -783,7 +784,7 @@ app.post('/api/chat', async (req, res) => {
         .map((block) => ({
           type: 'tool_result',
           tool_use_id: block.id,
-          content: JSON.stringify(runTool(block, order)),
+          content: JSON.stringify(withDisplayAmounts(runTool(block, order))),
         }));
 
       messages.push({ role: 'user', content: toolResults });

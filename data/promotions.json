@@ -3,12 +3,12 @@
     "id": "happy-hour",
     "name": "Happy Hour",
     "rule": "10% off all coffee category drinks, 2pm-4pm daily",
-    "discountValue": 10,
+    "discountPercent": 10,
     "discountType": "percentage",
     "eligibility": {
       "categories": ["coffee"],
       "timeWindow": { "start": "14:00", "end": "16:00" },
-      "minSpend": null
+      "minSpendCents": null
     },
     "active": true
   },
@@ -16,12 +16,12 @@
     "id": "bakery-bundle",
     "name": "Bakery Bundle",
     "rule": "$1.50 off any bakery item when purchased with a coffee or tea drink",
-    "discountValue": 1.50,
+    "discountCents": 150,
     "discountType": "fixed",
     "eligibility": {
       "categories": ["bakery"],
       "requiresItemFromCategories": ["coffee", "tea"],
-      "minSpend": null
+      "minSpendCents": null
     },
     "active": true
   },
@@ -29,12 +29,12 @@
     "id": "summer-iced-promo",
     "name": "Summer Iced Drink Promo",
     "rule": "15% off cold brew, expired after summer season",
-    "discountValue": 15,
+    "discountPercent": 15,
     "discountType": "percentage",
     "eligibility": {
       "categories": ["coffee"],
       "items": ["cold-brew"],
-      "minSpend": null
+      "minSpendCents": null
     },
     "active": false
   }

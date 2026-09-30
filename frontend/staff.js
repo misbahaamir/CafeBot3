@@ -1,5 +1,9 @@
 const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
 
+function formatCents(cents) {
+  return `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
+}
+
 async function loadOrders() {
   const res = await fetch('/api/staff/orders');
   const orders = await res.json();
@@ -54,7 +58,7 @@ function renderOrder(order) {
 
   const total = document.createElement('div');
   total.className = 'total';
-  total.textContent = `Total: $${order.totals.total.toFixed(2)}`;
+  total.textContent = `Total: ${formatCents(order.totals.totalCents)}`;
   card.appendChild(total);
 
   const nextIndex = ORDER_STATUS_FLOW.indexOf(order.status) + 1;
