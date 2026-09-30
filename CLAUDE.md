@@ -16,7 +16,9 @@ tenants, and a signed-in one for staff.
   through `rentals.js`, which validates it and enforces role permissions.
 - `data/` — JSON data files. Rental records and staff accounts are not
   committed; fictional sample data lives in `data/sample/`.
-- `prompts/` — prompt templates for the chat assistants (Claude API).
+- `prompts/` — prompt templates for the chat assistants (Claude API). The
+  public assistant (`chat.js`) only sees vacancy listings and `office.json`,
+  never tenant or lease records.
 
 ## Coding Rules
 

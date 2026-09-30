@@ -15,10 +15,26 @@
   <main>
     <h1>Rental property management</h1>
     <p>Residential and commercial rentals.</p>
+
+    <section class="chat" aria-labelledby="chat-title">
+      <h2 id="chat-title">Ask our assistant</h2>
+      <p class="chat-note">
+        Ask about vacancies, book a viewing, or report a maintenance problem.
+        This chat can't see your lease or payments. In an emergency, call 911.
+      </p>
+      <div class="chat-messages" id="chat-messages" aria-live="polite">
+        <div class="chat-bubble chat-bubble-bot">Hi! How can I help you today?</div>
+      </div>
+      <form class="chat-form" id="chat-form">
+        <input type="text" id="chat-input" maxlength="2000" autocomplete="off" aria-label="Your message" placeholder="Type a message&hellip;" required>
+        <button type="submit" id="chat-send">Send</button>
+      </form>
+    </section>
   </main>
 
   <footer class="site-footer">
     RentLedger prepares records for your accountant. It does not file with the CRA.
   </footer>
+  <script src="app.js"></script>
 </body>
 </html>

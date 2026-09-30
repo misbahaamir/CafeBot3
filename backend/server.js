@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const path = require('path');
 const express = require('express');
+const Anthropic = require('@anthropic-ai/sdk');
 const { loginBodySchema, validate } = require('./validation');
 const { createAuditLog } = require('./audit');
 const { createStaffStore } = require('./staff');
@@ -9,6 +10,9 @@ const { createSessionStore } = require('./sessions');
 const { permissionsFor } = require('./permissions');
 const { createRateLimiter } = require('./rate-limit');
 const { createRentalStore } = require('./rentals');
+const { createRequestStore } = require('./requests');
+const { loadOffice } = require('./office');
+const { createPublicAssistant, chatRequestSchema } = require('./chat');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +35,8 @@ const staffStore = createStaffStore(path.join(dataDir, 'staff.json'));
 const rentalStore = createRentalStore(dataDir, { today: todayInTimeZone });
 // Fail at startup, not on the first request, if the data files are missing or invalid.
 rentalStore.load();
+loadOffice(dataDir);
+const requestStore = createRequestStore(dataDir, auditLog, { rentalStore });
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -59,9 +65,47 @@ function rateLimit(limiter) {
   };
 }
 const loginLimiter = createRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
+const chatLimiter = createRateLimiter({ limit: 20, windowMs: 60 * 1000 });
+// Separate from chatLimiter so one visitor can't flood staff with requests.
+const submitLimiter = createRateLimiter({ limit: 5, windowMs: 60 * 60 * 1000 });
+
+const assistant = createPublicAssistant({
+  anthropic: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+  rentalStore,
+  requestStore,
+  loadOffice: () => loadOffice(dataDir),
+  today: todayInTimeZone,
+  submitLimiter,
+});
 
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use(express.json());
+
+const CHAT_ERROR_REPLY = "Sorry, I'm having trouble responding right now. Please try again in a moment.";
+
+app.post('/api/chat', rateLimit(chatLimiter), async (req, res) => {
+  const { data, error } = validate(chatRequestSchema, req.body);
+  if (error) {
+    return res.status(400).json(error);
+  }
+  try {
+    const reply = await assistant.reply(data, req.ip);
+    if (!reply) {
+      return res.status(502).json({ reply: CHAT_ERROR_REPLY });
+    }
+    res.json({
+      reply,
+      conversationHistory: [
+        ...data.conversationHistory,
+        { role: 'user', content: data.message },
+        { role: 'assistant', content: reply },
+      ],
+    });
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ reply: CHAT_ERROR_REPLY });
+  }
+});
 
 const SESSION_COOKIE = 'staff_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;

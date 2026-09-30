@@ -4,10 +4,10 @@ const { z } = require('zod');
 
 const entrySchema = z
   .object({
-    actorType: z.enum(['CUSTOMER', 'STAFF', 'SYSTEM']),
+    actorType: z.enum(['PUBLIC', 'STAFF', 'SYSTEM']),
     actorId: z.string().min(1).nullable(),
     action: z.enum(['CREATE', 'STATUS_CHANGE', 'CANCEL', 'LOGIN']),
-    entityType: z.enum(['STAFF']),
+    entityType: z.enum(['STAFF', 'MAINTENANCE_REQUEST', 'VIEWING_REQUEST']),
     entityId: z.string().min(1),
     before: z.record(z.string(), z.unknown()).nullable(),
     after: z.record(z.string(), z.unknown()).nullable(),

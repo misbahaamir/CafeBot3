@@ -1,0 +1,17 @@
+{
+  "companyName": "Sample Property Management",
+  "phone": "416-555-0100",
+  "email": "office@example.com",
+  "officeHours": "Monday to Friday, 9 a.m. to 5 p.m.",
+  "emergencyMaintenancePhone": "416-555-0199",
+  "faqs": [
+    {
+      "question": "How do I pay rent?",
+      "answer": "By pre-authorized debit or e-Transfer to payments@example.com. Include your unit in the message."
+    },
+    {
+      "question": "Are pets allowed?",
+      "answer": "Policies differ by building. Ask the office before signing a lease."
+    }
+  ]
+}

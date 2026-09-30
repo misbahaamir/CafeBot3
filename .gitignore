@@ -22,3 +22,10 @@ data/properties.json
 data/units.json
 data/tenants.json
 data/leases.json
+
+# Company contact details and FAQs; a sample lives in data/sample/
+data/office.json
+
+# Maintenance and viewing requests (contact details of the people asking)
+data/maintenance-requests.json
+data/viewing-requests.json

@@ -81,3 +81,25 @@ test('a missing data file points at the seed command', () => {
   fs.rmSync(path.join(dir, 'leases.json'));
   assert.throws(() => storeOn(dir).load(), /npm run seed:sample/);
 });
+
+test('listings expose only advertised units and no tenant or lease data', () => {
+  const listings = storeOn(sampleDir()).listings();
+  assert.deepEqual(listings.map((l) => l.unitId), ['maple-2', 'harbour-2a']);
+  assert.deepEqual(Object.keys(listings[0]).sort(), [
+    'address', 'availableFrom', 'bathrooms', 'bedrooms', 'city', 'description',
+    'label', 'propertyUseType', 'province', 'rentCents', 'unitId',
+  ]);
+  const text = JSON.stringify(listings);
+  for (const secret of ['Tremblay', 'example.com', '555', 'lease-']) {
+    assert.ok(!text.includes(secret), secret);
+  }
+});
+
+test('listings leave out units in properties already disposed of', () => {
+  const dir = sampleDir({
+    file: 'properties',
+    change: (properties) => properties.map((p) => (p.id === 'maple-row' ? { ...p, disposedOn: '2026-09-30' } : p)),
+  });
+  assert.deepEqual(storeOn(dir, '2026-09-29').listings().map((l) => l.unitId), ['maple-2', 'harbour-2a']);
+  assert.deepEqual(storeOn(dir, '2026-09-30').listings().map((l) => l.unitId), ['harbour-2a']);
+});

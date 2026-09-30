@@ -175,7 +175,35 @@ function createRentalStore(dataDir, { today }) {
     };
   }
 
-  return { load, overview };
+  // Public: built field by field so no tenant or lease data can reach the
+  // public assistant, even if new fields are added to the records later.
+  function listings() {
+    const { properties, units } = load();
+    const date = today();
+    const activeProperties = new Map(
+      properties.filter((p) => p.disposedOn === null || p.disposedOn > date).map((p) => [p.id, p])
+    );
+    return units
+      .filter((unit) => unit.listing !== null && activeProperties.has(unit.propertyId))
+      .map((unit) => {
+        const property = activeProperties.get(unit.propertyId);
+        return {
+          unitId: unit.id,
+          address: property.address,
+          city: property.city,
+          province: property.province,
+          propertyUseType: property.useType,
+          label: unit.label,
+          bedrooms: unit.bedrooms,
+          bathrooms: unit.bathrooms,
+          rentCents: unit.defaultRentCents,
+          availableFrom: unit.listing.availableFrom,
+          description: unit.listing.description,
+        };
+      });
+  }
+
+  return { load, overview, listings };
 }
 
 module.exports = { createRentalStore };
