@@ -1046,6 +1046,11 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: status === 500 ? 'internal_error' : err.type || 'bad_request' });
 });
 
-app.listen(PORT, () => {
-  console.log(`CafeBot server running on http://localhost:${PORT}`);
-});
+// Only listen when run directly, so tests can require the order tools.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`CafeBot server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { createOrderState, runTool };

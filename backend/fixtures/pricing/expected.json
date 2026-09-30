@@ -1,0 +1,13 @@
+{
+  "bakery bundle, pickup": { "subtotalCents": 1275, "discountCents": 150, "taxCents": 90, "deliveryFeeCents": 0, "totalCents": 1215 },
+  "delivery, no promotion": { "subtotalCents": 1600, "discountCents": 0, "taxCents": 128, "deliveryFeeCents": 300, "totalCents": 2028 },
+  "happy hour on the coffee lines only": { "subtotalCents": 1300, "discountCents": 85, "taxCents": 97, "deliveryFeeCents": 0, "totalCents": 1312 },
+  "happy hour starts at 14:00, half-cent discount rounds up, delivery": { "subtotalCents": 1175, "discountCents": 118, "taxCents": 85, "deliveryFeeCents": 300, "totalCents": 1442 },
+  "maximum quantity on one line": { "subtotalCents": 9000, "discountCents": 0, "taxCents": 720, "deliveryFeeCents": 0, "totalCents": 9720 },
+  "happy hour has ended at 16:00": { "subtotalCents": 350, "discountCents": 0, "taxCents": 28, "deliveryFeeCents": 0, "totalCents": 378 },
+  "happy hour has not started at 13:59": { "subtotalCents": 350, "discountCents": 0, "taxCents": 28, "deliveryFeeCents": 0, "totalCents": 378 },
+  "bakery bundle needs a drink": { "subtotalCents": 375, "discountCents": 0, "taxCents": 30, "deliveryFeeCents": 0, "totalCents": 405 },
+  "inactive promotion cannot be applied": { "subtotalCents": 425, "discountCents": 0, "taxCents": 34, "deliveryFeeCents": 0, "totalCents": 459 },
+  "happy hour does not cover tea": { "subtotalCents": 475, "discountCents": 0, "taxCents": 38, "deliveryFeeCents": 0, "totalCents": 513 },
+  "changing the cart clears an applied discount": { "subtotalCents": 825, "discountCents": 0, "taxCents": 66, "deliveryFeeCents": 0, "totalCents": 891 }
+}
