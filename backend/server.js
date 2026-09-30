@@ -7,12 +7,13 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const { applyRate, withDisplayAmounts } = require('./money');
 const {
-  ORDER_STATUS_FLOW,
   chatRequestSchema,
   orderIdParamsSchema,
   orderStatusBodySchema,
   validate,
 } = require('./validation');
+const { createAuditLog } = require('./audit');
+const { createOrderStore } = require('./orders');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -688,7 +689,7 @@ function getOrderSummary(order) {
   };
 }
 
-function finalizeOrder(order, input) {
+function finalizeOrder(order, input, sessionId) {
   if (order.confirmed) {
     return { error: 'order_already_finalized' };
   }
@@ -704,9 +705,6 @@ function finalizeOrder(order, input) {
     return { error: 'confirmation_required' };
   }
 
-  order.confirmed = true;
-  order.status = 'confirmed';
-
   const savedOrder = {
     id: crypto.randomUUID(),
     confirmedAt: new Date().toISOString(),
@@ -717,16 +715,20 @@ function finalizeOrder(order, input) {
     totals: summary.totals,
   };
 
-  // data/orders.json is flat-file, dev-only storage — not a real database.
-  const ordersPath = path.join(__dirname, '..', 'data', 'orders.json');
-  const savedOrders = JSON.parse(fs.readFileSync(ordersPath, 'utf-8'));
-  savedOrders.push(savedOrder);
-  fs.writeFileSync(ordersPath, JSON.stringify(savedOrders, null, 2));
+  try {
+    orderStore.create(savedOrder, sessionId);
+  } catch (err) {
+    console.error('Failed to save order:', err);
+    return { error: 'save_failed' };
+  }
+
+  order.confirmed = true;
+  order.status = 'confirmed';
 
   return { success: true, order: savedOrder };
 }
 
-function runTool(block, order) {
+function runTool(block, order, sessionId) {
   switch (block.name) {
     case 'getMenu':
       return getMenu();
@@ -749,7 +751,7 @@ function runTool(block, order) {
     case 'getOrderSummary':
       return getOrderSummary(order);
     case 'finalizeOrder':
-      return finalizeOrder(order, block.input);
+      return finalizeOrder(order, block.input, sessionId);
     case 'getOrderTotal':
       return getOrderTotal(order);
     case 'applyPromotion':
@@ -791,7 +793,7 @@ app.post('/api/chat', async (req, res) => {
         .map((block) => ({
           type: 'tool_result',
           tool_use_id: block.id,
-          content: JSON.stringify(withDisplayAmounts(runTool(block, order))),
+          content: JSON.stringify(withDisplayAmounts(runTool(block, order, sessionId))),
         }));
 
       messages.push({ role: 'user', content: toolResults });
@@ -832,14 +834,13 @@ app.post('/api/chat', async (req, res) => {
 // Serverless platforms like Vercel run functions on ephemeral, read-only-by-default
 // filesystems, so writes here are not guaranteed to persist in production — replace
 // with a real database before deploying there.
-const ordersPath = path.join(__dirname, '..', 'data', 'orders.json');
-
-function readSavedOrders() {
-  return JSON.parse(fs.readFileSync(ordersPath, 'utf-8'));
-}
+const orderStore = createOrderStore(
+  path.join(__dirname, '..', 'data', 'orders.json'),
+  createAuditLog(path.join(__dirname, '..', 'data', 'audit-log.jsonl'))
+);
 
 app.get('/api/staff/orders', (req, res) => {
-  res.json(readSavedOrders());
+  res.json(orderStore.readAll());
 });
 
 app.patch('/api/staff/orders/:id/status', (req, res) => {
@@ -853,21 +854,14 @@ app.patch('/api/staff/orders/:id/status', (req, res) => {
   }
   const { status } = body.data;
 
-  const savedOrders = readSavedOrders();
-  const order = savedOrders.find((o) => o.id === params.data.id);
-  if (!order) {
-    return res.status(404).json({ error: 'order_not_found' });
+  const result = orderStore.updateStatus(params.data.id, status);
+  if (result.error === 'order_not_found') {
+    return res.status(404).json(result);
   }
-
-  const currentIndex = ORDER_STATUS_FLOW.indexOf(order.status);
-  const nextIndex = ORDER_STATUS_FLOW.indexOf(status);
-  if (nextIndex !== currentIndex + 1) {
-    return res.status(400).json({ error: 'invalid_transition' });
+  if (result.error) {
+    return res.status(400).json(result);
   }
-
-  order.status = status;
-  fs.writeFileSync(ordersPath, JSON.stringify(savedOrders, null, 2));
-  res.json({ success: true, order });
+  res.json({ success: true, order: result.order });
 });
 
 // Replaces Express's default error page, which exposes a stack trace (e.g. on
