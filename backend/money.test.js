@@ -36,20 +36,20 @@ test('applyRate rejects invalid input', () => {
 
 test('withDisplayAmounts converts *Cents keys recursively and leaves others alone', () => {
   const input = {
-    name: 'Latte',
-    quantity: 2,
-    priceCents: 450,
-    discount: null,
-    items: [{ lineTotalCents: 900, options: ['oat milk'] }],
-    totals: { totalCents: 972 },
+    label: 'Unit 2',
+    bedrooms: 1,
+    rentCents: 165000,
+    listing: null,
+    charges: [{ amountCents: 5000, utilities: ['water'] }],
+    totals: { totalCents: 170000 },
   };
   assert.deepEqual(withDisplayAmounts(input), {
-    name: 'Latte',
-    quantity: 2,
-    price: '$4.50',
-    discount: null,
-    items: [{ lineTotal: '$9.00', options: ['oat milk'] }],
-    totals: { total: '$9.72' },
+    label: 'Unit 2',
+    bedrooms: 1,
+    rent: '$1650.00',
+    listing: null,
+    charges: [{ amount: '$50.00', utilities: ['water'] }],
+    totals: { total: '$1700.00' },
   });
 });
 

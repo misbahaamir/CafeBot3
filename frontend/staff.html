@@ -2,17 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CafeBot — Staff Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RentLedger — Properties</title>
   <link rel="stylesheet" href="staff.css" />
 </head>
 <body>
-  <h1>Orders</h1>
+  <h1>Properties</h1>
   <div class="toolbar">
     <button id="refresh">Refresh</button>
     <span id="signed-in-as"></span>
     <button id="sign-out">Sign out</button>
   </div>
-  <div id="orders"></div>
+  <p id="as-of"></p>
+  <div id="properties"></div>
+  <p class="disclaimer">RentLedger prepares records for your accountant. It does not file with the CRA.</p>
   <script src="staff.js"></script>
 </body>
 </html>

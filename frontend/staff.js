@@ -1,13 +1,5 @@
-const ORDER_STATUS_FLOW = ['NEW', 'PREPARING', 'READY', 'COMPLETED'];
-const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
-const MIN_CANCEL_REASON_LENGTH = 10;
-
-// Filled from /api/staff/me. Only used to hide buttons; the server enforces
-// the same permissions on every request.
-let staffPermissions = [];
-
 function formatCents(cents) {
-  return `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
+  return `$${Math.floor(cents / 100).toLocaleString('en-CA')}.${String(cents % 100).padStart(2, '0')}`;
 }
 
 // Every staff API call returns 401 once the session is gone or expired.
@@ -20,218 +12,79 @@ async function staffFetch(url, options) {
   return res;
 }
 
-async function loadOrders() {
-  const res = await staffFetch('/api/staff/orders');
-  const orders = await res.json();
-  renderOrders(orders);
-}
-
-function renderOrders(orders) {
-  const container = document.getElementById('orders');
-  container.textContent = '';
-
-  if (orders.length === 0) {
-    container.textContent = 'No orders yet.';
+async function loadProperties() {
+  const container = document.getElementById('properties');
+  const res = await staffFetch('/api/staff/properties');
+  if (!res.ok) {
+    container.textContent = res.status === 403 ? 'You do not have access to properties.' : 'Could not load properties.';
     return;
   }
-
-  for (const order of [...orders].reverse()) {
-    container.appendChild(renderOrder(order));
+  const { date, properties } = await res.json();
+  document.getElementById('as-of').textContent = `Occupancy as of ${date}`;
+  container.textContent = '';
+  if (properties.length === 0) {
+    container.textContent = 'No properties yet.';
+    return;
+  }
+  for (const property of properties) {
+    container.appendChild(renderProperty(property));
   }
 }
 
-function renderOrder(order) {
-  const card = document.createElement('div');
-  card.className = 'order';
+function renderProperty(property) {
+  const card = document.createElement('section');
+  card.className = 'property';
 
-  const header = document.createElement('div');
-  header.className = 'order-header';
+  const heading = document.createElement('h2');
+  heading.textContent = `${property.address}, ${property.city}, ${property.province} ${property.postalCode}`;
+  card.appendChild(heading);
 
-  const idEl = document.createElement('span');
-  idEl.textContent = `Order ${order.id.slice(0, 8)}`;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = `${property.useType} · rental use ${property.rentalUsePercent}%`;
+  card.appendChild(meta);
 
-  const statusEl = document.createElement('span');
-  statusEl.className = `status status-${order.status}`;
-  statusEl.textContent = order.status;
-
-  header.appendChild(idEl);
-  header.appendChild(statusEl);
-  card.appendChild(header);
-
-  const items = document.createElement('ul');
-  items.className = 'items';
-  for (const line of order.items) {
-    const li = document.createElement('li');
-    let text = `${line.quantity} x ${line.item}`;
-    if (line.size) text += ` (${line.size})`;
-    if (line.options && line.options.length) text += ` — ${line.options.join(', ')}`;
-    li.textContent = text;
-    items.appendChild(li);
+  const list = document.createElement('ul');
+  list.className = 'units';
+  for (const unit of property.units) {
+    list.appendChild(renderUnit(unit));
   }
-  card.appendChild(items);
-
-  card.appendChild(renderFulfillment(order.fulfillment));
-
-  const total = document.createElement('div');
-  total.className = 'total';
-  total.textContent = `Total: ${formatCents(order.totals.totalCents)}`;
-  card.appendChild(total);
-
-  if (order.status === 'CANCELLED') {
-    const reason = document.createElement('div');
-    reason.className = 'cancel-reason';
-    reason.textContent = `Cancelled: ${order.cancelReason}`;
-    card.appendChild(reason);
-  }
-
-  if (!FINAL_STATUSES.includes(order.status)) {
-    const nextStatus = ORDER_STATUS_FLOW[ORDER_STATUS_FLOW.indexOf(order.status) + 1];
-    const button = document.createElement('button');
-    button.textContent = `Advance to ${nextStatus}`;
-    button.addEventListener('click', () => advanceOrder(order.id, nextStatus));
-    card.appendChild(button);
-  }
-
-  if (!FINAL_STATUSES.includes(order.status) && staffPermissions.includes('orders:cancel')) {
-    const cancelButton = document.createElement('button');
-    cancelButton.className = 'cancel';
-    cancelButton.textContent = 'Cancel order';
-    cancelButton.addEventListener('click', () => cancelOrder(order.id));
-    card.appendChild(cancelButton);
-  }
-
-  const historyButton = document.createElement('button');
-  historyButton.className = 'history-toggle';
-  historyButton.textContent = 'History';
-  const historyPanel = document.createElement('div');
-  historyPanel.className = 'history';
-  historyPanel.hidden = true;
-  historyButton.addEventListener('click', () => toggleHistory(order.id, historyPanel));
-  card.appendChild(historyButton);
-  card.appendChild(historyPanel);
-
+  card.appendChild(list);
   return card;
 }
 
-async function toggleHistory(id, panel) {
-  if (!panel.hidden) {
-    panel.hidden = true;
-    return;
-  }
-
-  panel.textContent = 'Loading…';
-  panel.hidden = false;
-  const res = await staffFetch(`/api/staff/orders/${id}/history`);
-  if (!res.ok) {
-    panel.textContent = 'Could not load history.';
-    return;
-  }
-
-  const entries = await res.json();
-  panel.textContent = '';
-  const list = document.createElement('ul');
-  for (const entry of entries) {
-    list.appendChild(renderHistoryEntry(entry));
-  }
-  panel.appendChild(list);
-}
-
-function renderHistoryEntry(entry) {
+function renderUnit(unit) {
   const li = document.createElement('li');
 
-  const heading = document.createElement('div');
-  heading.className = 'history-heading';
-  heading.textContent = `${new Date(entry.createdAt).toLocaleString()} · ${describeActor(entry)} · ${entry.action}`;
-  li.appendChild(heading);
+  const title = document.createElement('div');
+  title.className = 'unit-title';
+  const beds = unit.bedrooms === 0 ? 'no bedrooms' : `${unit.bedrooms} bed`;
+  title.textContent = `${unit.label} — ${beds}, ${unit.bathrooms} bath`;
+  li.appendChild(title);
 
-  const details = entry.action === 'CREATE' ? ['Order placed'] : describeChanges(entry.before, entry.after);
-  if (entry.reason) details.push(`Reason: ${entry.reason}`);
-  for (const text of details) {
-    const line = document.createElement('div');
-    line.textContent = text;
-    li.appendChild(line);
-  }
-
-  return li;
-}
-
-function describeActor(entry) {
-  if (entry.actorType === 'CUSTOMER') return 'Customer';
-  if (entry.actorType === 'STAFF') return entry.actorId ? `Staff (${entry.actorId})` : 'Staff';
-  return 'System';
-}
-
-function describeChanges(before, after) {
-  return Object.keys(after || {}).map((key) => {
-    const from = before && key in before ? before[key] : '(none)';
-    return `${key}: ${from} → ${after[key]}`;
-  });
-}
-
-function renderFulfillment(fulfillment) {
-  const div = document.createElement('div');
-  const info = fulfillment.type === 'delivery' ? fulfillment.delivery : fulfillment.pickup;
-
-  const lines = [`Fulfillment: ${fulfillment.type}`, `Name: ${info.name}`];
-  if (fulfillment.type === 'pickup') {
-    if (info.pickupTime) lines.push(`Pickup time: ${info.pickupTime}`);
+  const status = document.createElement('div');
+  const lease = unit.currentLease;
+  if (lease) {
+    const term = lease.endDate ? `until ${lease.endDate}` : 'month to month';
+    status.textContent = `Leased to ${lease.tenantNames.join(', ')} · ${formatCents(lease.rentCents)}/month, due day ${lease.rentDueDay} · ${term}`;
   } else {
-    lines.push(`Phone: ${info.phone}`);
-    let address = info.address;
-    if (info.apartmentUnit) address += `, ${info.apartmentUnit}`;
-    lines.push(`Address: ${address}`);
-    if (info.instructions) lines.push(`Instructions: ${info.instructions}`);
+    status.className = 'vacant';
+    status.textContent = `Vacant · default rent ${formatCents(unit.defaultRentCents)}/month`;
   }
+  li.appendChild(status);
 
-  for (const line of lines) {
-    const p = document.createElement('div');
-    p.textContent = line;
-    div.appendChild(p);
+  if (unit.listing) {
+    const listing = document.createElement('div');
+    listing.className = 'listing';
+    listing.textContent = `Listed, available from ${unit.listing.availableFrom}`;
+    li.appendChild(listing);
   }
-
-  return div;
-}
-
-async function advanceOrder(id, status) {
-  const res = await staffFetch(`/api/staff/orders/${id}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    alert(`Could not update order: ${body.error || res.status}`);
-    return;
-  }
-  loadOrders();
-}
-
-async function cancelOrder(id) {
-  const input = prompt(`Reason for cancelling (at least ${MIN_CANCEL_REASON_LENGTH} characters):`);
-  if (input === null) return;
-  const reason = input.trim();
-  if (reason.length < MIN_CANCEL_REASON_LENGTH) {
-    alert(`The reason must be at least ${MIN_CANCEL_REASON_LENGTH} characters.`);
-    return;
-  }
-
-  const res = await staffFetch(`/api/staff/orders/${id}/cancel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    alert(`Could not cancel order: ${body.error || res.status}`);
-    return;
-  }
-  loadOrders();
+  return li;
 }
 
 async function showSignedInUser() {
   const res = await staffFetch('/api/staff/me');
-  const { username, role, permissions } = await res.json();
-  staffPermissions = permissions;
+  const { username, role } = await res.json();
   document.getElementById('signed-in-as').textContent = `Signed in as ${username} (${role})`;
 }
 
@@ -240,6 +93,6 @@ async function signOut() {
   window.location.href = 'login.html';
 }
 
-document.getElementById('refresh').addEventListener('click', loadOrders);
+document.getElementById('refresh').addEventListener('click', loadProperties);
 document.getElementById('sign-out').addEventListener('click', signOut);
-showSignedInUser().then(loadOrders);
+showSignedInUser().then(loadProperties);

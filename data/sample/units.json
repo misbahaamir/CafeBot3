@@ -1,0 +1,53 @@
+[
+  {
+    "id": "maple-1",
+    "propertyId": "maple-row",
+    "label": "Unit 1",
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "defaultRentCents": 210000,
+    "listing": null
+  },
+  {
+    "id": "maple-2",
+    "propertyId": "maple-row",
+    "label": "Unit 2",
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "defaultRentCents": 165000,
+    "listing": {
+      "description": "Bright one-bedroom on the second floor with in-suite laundry. Close to the streetcar.",
+      "availableFrom": "2026-11-01"
+    }
+  },
+  {
+    "id": "harbour-shop",
+    "propertyId": "harbour-lane",
+    "label": "Ground-floor shop",
+    "bedrooms": 0,
+    "bathrooms": 1,
+    "defaultRentCents": 320000,
+    "listing": null
+  },
+  {
+    "id": "harbour-2a",
+    "propertyId": "harbour-lane",
+    "label": "Apt 2A",
+    "bedrooms": 3,
+    "bathrooms": 1.5,
+    "defaultRentCents": 240000,
+    "listing": {
+      "description": "Three-bedroom above the shop with harbour views. Heat and water included.",
+      "availableFrom": "2026-10-15"
+    }
+  },
+  {
+    "id": "harbour-2b",
+    "propertyId": "harbour-lane",
+    "label": "Apt 2B",
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "defaultRentCents": 175000,
+    "listing": null
+  }
+]

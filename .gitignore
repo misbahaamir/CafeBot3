@@ -16,3 +16,9 @@ data/audit-log.jsonl
 
 # Staff accounts (password hashes)
 data/staff.json
+
+# Rental records (tenant personal data); samples live in data/sample/
+data/properties.json
+data/units.json
+data/tenants.json
+data/leases.json

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "staff:add": "node add-staff.js",
-    "test": "node --test"
+    "test": "node --test",
+    "seed:sample": "node seed-sample.js"
   },
   "keywords": [],
   "author": "",

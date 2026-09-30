@@ -1,0 +1,52 @@
+[
+  {
+    "id": "lease-maple-1",
+    "unitId": "maple-1",
+    "tenantIds": ["t-jordan", "t-riley"],
+    "startDate": "2025-08-01",
+    "endDate": "2026-07-31",
+    "rentCents": 210000,
+    "rentDueDay": 1,
+    "includedUtilities": ["water"]
+  },
+  {
+    "id": "lease-maple-1-renewal",
+    "unitId": "maple-1",
+    "tenantIds": ["t-jordan", "t-riley"],
+    "startDate": "2026-08-01",
+    "endDate": null,
+    "rentCents": 215250,
+    "rentDueDay": 1,
+    "includedUtilities": ["water"]
+  },
+  {
+    "id": "lease-harbour-shop",
+    "unitId": "harbour-shop",
+    "tenantIds": ["t-harbour-books"],
+    "startDate": "2024-01-01",
+    "endDate": "2028-12-31",
+    "rentCents": 320000,
+    "rentDueDay": 1,
+    "includedUtilities": []
+  },
+  {
+    "id": "lease-harbour-2b-old",
+    "unitId": "harbour-2b",
+    "tenantIds": ["t-morgan"],
+    "startDate": "2025-07-01",
+    "endDate": "2026-06-30",
+    "rentCents": 170000,
+    "rentDueDay": 1,
+    "includedUtilities": ["heat", "water"]
+  },
+  {
+    "id": "lease-harbour-2b",
+    "unitId": "harbour-2b",
+    "tenantIds": ["t-priya"],
+    "startDate": "2026-07-01",
+    "endDate": "2027-06-30",
+    "rentCents": 175000,
+    "rentDueDay": 1,
+    "includedUtilities": ["heat", "water"]
+  }
+]

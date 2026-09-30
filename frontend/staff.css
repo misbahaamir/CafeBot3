@@ -10,67 +10,48 @@ button {
   cursor: pointer;
 }
 
-.order {
+.property {
   border: 1px solid #ccc;
   border-radius: 8px;
   padding: 1rem;
   margin: 1rem 0;
 }
 
-.order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.property h2 {
+  font-size: 1.1rem;
+  margin: 0;
 }
 
-.status {
-  font-weight: bold;
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-  background: #eee;
-}
-
-.status-NEW { background: #fde68a; }
-.status-PREPARING { background: #bfdbfe; }
-.status-READY { background: #bbf7d0; }
-.status-COMPLETED { background: #d1d5db; }
-.status-CANCELLED { background: #fecaca; }
-
-.items {
-  margin: 0.5rem 0;
-  padding-left: 1.2rem;
-}
-
-.total {
-  font-weight: bold;
-  margin-top: 0.5rem;
-}
-
-.order button {
-  margin: 0.5rem 0.5rem 0 0;
-}
-
-.cancel-reason {
-  margin-top: 0.5rem;
-  color: #991b1b;
-}
-
-.history {
-  margin-top: 0.5rem;
+.meta {
+  color: #555;
   font-size: 0.9rem;
-  color: #444;
 }
 
-.history ul {
+.units {
   padding-left: 1.2rem;
 }
 
-.history li {
-  margin-bottom: 0.4rem;
+.units li {
+  margin: 0.6rem 0;
 }
 
-.history-heading {
+.unit-title {
   font-weight: bold;
+}
+
+.vacant {
+  color: #92400e;
+}
+
+.listing {
+  color: #1d4ed8;
+  font-size: 0.9rem;
+}
+
+.disclaimer {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .toolbar {

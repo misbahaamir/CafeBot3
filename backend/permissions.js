@@ -1,10 +1,10 @@
-// The single source of truth for what each staff role may do. The order store
-// checks it on every staff action; the UI only uses it to hide buttons.
+// Only permissions that some feature checks today; later features add theirs.
 const PERMISSIONS = {
-  MANAGER: ['orders:view', 'orders:advance', 'orders:cancel'],
-  BARISTA: ['orders:view', 'orders:advance'],
+  ADMIN: ['properties:view'],
+  MANAGER: ['properties:view'],
+  BOOKKEEPER: ['properties:view'],
+  ACCOUNTANT: ['properties:view'],
 };
-
 const ROLES = Object.keys(PERMISSIONS);
 
 function permissionsFor(role) {

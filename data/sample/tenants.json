@@ -1,0 +1,7 @@
+[
+  { "id": "t-jordan", "fullName": "Jordan Tremblay", "email": "jordan.tremblay@example.com", "phone": "416-555-0101" },
+  { "id": "t-riley", "fullName": "Riley Tremblay", "email": "riley.tremblay@example.com", "phone": "416-555-0102" },
+  { "id": "t-harbour-books", "fullName": "Harbour Books Ltd. (contact: Sam Okafor)", "email": "sam@harbourbooks.example.com", "phone": "902-555-0110" },
+  { "id": "t-priya", "fullName": "Priya Nair", "email": "priya.nair@example.com", "phone": "902-555-0120" },
+  { "id": "t-morgan", "fullName": "Morgan Lee", "email": "morgan.lee@example.com", "phone": "902-555-0130" }
+]

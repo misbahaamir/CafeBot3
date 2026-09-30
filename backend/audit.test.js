@@ -6,7 +6,7 @@ const path = require('path');
 const { createAuditLog } = require('./audit');
 
 function tempLogPath() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cafebot-audit-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rentledger-audit-'));
   return path.join(dir, 'audit-log.jsonl');
 }
 
@@ -14,8 +14,8 @@ const statusChange = {
   actorType: 'STAFF',
   actorId: null,
   action: 'STATUS_CHANGE',
-  entityType: 'ORDER',
-  entityId: 'order-1',
+  entityType: 'STAFF',
+  entityId: 'staff-1',
   before: { status: 'NEW' },
   after: { status: 'PREPARING' },
   reason: null,
@@ -41,7 +41,7 @@ test('appending never rewrites existing entries', () => {
   log.append(statusChange);
   const before = fs.readFileSync(filePath, 'utf-8');
 
-  log.append({ ...statusChange, entityId: 'order-2' });
+  log.append({ ...statusChange, entityId: 'staff-2' });
 
   const after = fs.readFileSync(filePath, 'utf-8');
   assert.ok(after.startsWith(before));

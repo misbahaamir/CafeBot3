@@ -1,0 +1,24 @@
+[
+  {
+    "id": "maple-row",
+    "address": "12 Maple Row",
+    "city": "Toronto",
+    "province": "ON",
+    "postalCode": "M4E 1A1",
+    "useType": "RESIDENTIAL",
+    "rentalUsePercent": 100,
+    "acquiredOn": "2019-05-01",
+    "disposedOn": null
+  },
+  {
+    "id": "harbour-lane",
+    "address": "480 Harbour Lane",
+    "city": "Halifax",
+    "province": "NS",
+    "postalCode": "B3H 0A1",
+    "useType": "MIXED",
+    "rentalUsePercent": 80,
+    "acquiredOn": "2021-09-15",
+    "disposedOn": null
+  }
+]
