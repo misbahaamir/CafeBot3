@@ -10,7 +10,7 @@ const { createSessionStore } = require('./sessions');
 const { permissionsFor } = require('./permissions');
 const { createRateLimiter } = require('./rate-limit');
 const { createRentalStore } = require('./rentals');
-const { createRequestStore } = require('./requests');
+const { createRequestStore, requestParamsSchema, statusBodySchema, cancelBodySchema } = require('./requests');
 const { loadOffice } = require('./office');
 const { createPublicAssistant, chatRequestSchema } = require('./chat');
 
@@ -177,6 +177,41 @@ app.get('/api/staff/properties', (req, res) => {
     return res.status(403).json(result);
   }
   res.json(result);
+});
+
+app.get('/api/staff/requests', (req, res) => {
+  const result = requestStore.list(req.staff);
+  if (result.error) {
+    return res.status(403).json(result);
+  }
+  res.json(result);
+});
+
+const REQUEST_ERROR_STATUS = { forbidden: 403, request_not_found: 404, invalid_transition: 409 };
+
+function sendRequestResult(res, result) {
+  if (result.error) {
+    return res.status(REQUEST_ERROR_STATUS[result.error]).json(result);
+  }
+  res.json(result);
+}
+
+app.post('/api/staff/requests/:kind/:id/status', (req, res) => {
+  const params = validate(requestParamsSchema, req.params);
+  const body = validate(statusBodySchema, req.body);
+  if (params.error || body.error) {
+    return res.status(400).json(params.error || body.error);
+  }
+  sendRequestResult(res, requestStore.updateStatus(params.data.kind, params.data.id, body.data.status, req.staff));
+});
+
+app.post('/api/staff/requests/:kind/:id/cancel', (req, res) => {
+  const params = validate(requestParamsSchema, req.params);
+  const body = validate(cancelBodySchema, req.body);
+  if (params.error || body.error) {
+    return res.status(400).json(params.error || body.error);
+  }
+  sendRequestResult(res, requestStore.cancel(params.data.kind, params.data.id, body.data.reason, req.staff));
 });
 
 // Replaces Express's default error page, which exposes a stack trace (e.g. on

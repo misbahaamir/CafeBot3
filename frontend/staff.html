@@ -3,16 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RentLedger — Properties</title>
+  <title>RentLedger — Staff</title>
   <link rel="stylesheet" href="staff.css" />
 </head>
 <body>
-  <h1>Properties</h1>
+  <h1>RentLedger staff</h1>
   <div class="toolbar">
     <button id="refresh">Refresh</button>
     <span id="signed-in-as"></span>
     <button id="sign-out">Sign out</button>
   </div>
+
+  <section id="requests-section" hidden>
+    <h2>Requests</h2>
+    <label><input type="checkbox" id="show-closed" /> Show completed and cancelled</label>
+    <h3>Maintenance</h3>
+    <div id="maintenance-requests"></div>
+    <h3>Viewings</h3>
+    <div id="viewing-requests"></div>
+  </section>
+
+  <h2>Properties</h2>
   <p id="as-of"></p>
   <div id="properties"></div>
   <p class="disclaimer">RentLedger prepares records for your accountant. It does not file with the CRA.</p>

@@ -82,10 +82,123 @@ function renderUnit(unit) {
   return li;
 }
 
+const NEXT_STATUS = {
+  maintenance: { NEW: ['IN_PROGRESS', 'Start work'], IN_PROGRESS: ['COMPLETED', 'Mark completed'] },
+  viewing: { NEW: ['SCHEDULED', 'Mark scheduled'], SCHEDULED: ['COMPLETED', 'Mark completed'] },
+};
+const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED'];
+const ACTION_ERRORS = {
+  invalid_transition: 'This request was already changed. The list has been refreshed.',
+  request_not_found: 'This request no longer exists. The list has been refreshed.',
+  forbidden: 'You do not have permission to change requests.',
+};
+
+let canManageRequests = false;
+
+async function loadRequests() {
+  const res = await staffFetch('/api/staff/requests');
+  const maintenance = document.getElementById('maintenance-requests');
+  const viewing = document.getElementById('viewing-requests');
+  if (!res.ok) {
+    maintenance.textContent = 'Could not load requests.';
+    viewing.textContent = '';
+    return;
+  }
+  const data = await res.json();
+  renderRequestList(maintenance, 'maintenance', data.maintenance);
+  renderRequestList(viewing, 'viewing', data.viewing);
+}
+
+function renderRequestList(container, kind, requests) {
+  const showClosed = document.getElementById('show-closed').checked;
+  const shown = requests.filter((r) => showClosed || !CLOSED_STATUSES.includes(r.status));
+  container.textContent = '';
+  if (shown.length === 0) {
+    container.textContent = showClosed ? 'No requests.' : 'No open requests.';
+    return;
+  }
+  for (const request of shown) {
+    container.appendChild(renderRequest(kind, request));
+  }
+}
+
+function addLine(parent, text, className) {
+  const line = document.createElement('div');
+  line.textContent = text;
+  if (className) line.className = className;
+  parent.appendChild(line);
+}
+
+function renderRequest(kind, request) {
+  const card = document.createElement('article');
+  card.className = `request status-${request.status.toLowerCase()}`;
+
+  const title = kind === 'maintenance'
+    ? `${request.category.replaceAll('_', ' ')} · ${request.urgency}`
+    : `Viewing · ${request.unitName}`;
+  addLine(card, title, 'request-title');
+  addLine(card, `${request.status.replaceAll('_', ' ')} · received ${new Date(request.createdAt).toLocaleString('en-CA')}`, 'meta');
+  addLine(card, [request.name, request.email, request.phone].filter(Boolean).join(' · '));
+  if (kind === 'maintenance') {
+    addLine(card, request.address);
+    addLine(card, request.description, 'request-text');
+  } else {
+    addLine(card, `Preferred times: ${request.preferredTimes}`, 'request-text');
+  }
+  if (request.cancelReason) {
+    addLine(card, `Cancelled: ${request.cancelReason}`, 'meta');
+  }
+
+  const next = NEXT_STATUS[kind][request.status];
+  if (canManageRequests && next) {
+    const actions = document.createElement('div');
+    actions.className = 'request-actions';
+    const advance = document.createElement('button');
+    advance.textContent = next[1];
+    advance.addEventListener('click', () => changeRequest(kind, request.id, 'status', { status: next[0] }));
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel request';
+    cancel.addEventListener('click', () => {
+      const reason = window.prompt('Why is this request being cancelled? (at least 10 characters)');
+      if (reason === null) return;
+      if (reason.trim().length < 10) {
+        window.alert('Please give a reason of at least 10 characters.');
+        return;
+      }
+      changeRequest(kind, request.id, 'cancel', { reason: reason.trim() });
+    });
+    actions.append(advance, cancel);
+    card.appendChild(actions);
+  }
+  return card;
+}
+
+async function changeRequest(kind, id, action, body) {
+  const res = await staffFetch(`/api/staff/requests/${kind}/${id}/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    window.alert(ACTION_ERRORS[error] || 'Could not update the request. Please try again.');
+  }
+  await loadRequests();
+}
+
 async function showSignedInUser() {
   const res = await staffFetch('/api/staff/me');
-  const { username, role } = await res.json();
+  const { username, role, permissions } = await res.json();
   document.getElementById('signed-in-as').textContent = `Signed in as ${username} (${role})`;
+  canManageRequests = permissions.includes('requests:manage');
+  document.getElementById('requests-section').hidden = !permissions.includes('requests:view');
+}
+
+async function loadAll() {
+  if (!document.getElementById('requests-section').hidden) {
+    await loadRequests();
+  }
+  await loadProperties();
 }
 
 async function signOut() {
@@ -93,6 +206,7 @@ async function signOut() {
   window.location.href = 'login.html';
 }
 
-document.getElementById('refresh').addEventListener('click', loadProperties);
+document.getElementById('refresh').addEventListener('click', loadAll);
+document.getElementById('show-closed').addEventListener('change', loadRequests);
 document.getElementById('sign-out').addEventListener('click', signOut);
-showSignedInUser().then(loadProperties);
+showSignedInUser().then(loadAll);

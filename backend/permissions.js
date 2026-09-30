@@ -1,7 +1,7 @@
 // Only permissions that some feature checks today; later features add theirs.
 const PERMISSIONS = {
-  ADMIN: ['properties:view'],
-  MANAGER: ['properties:view'],
+  ADMIN: ['properties:view', 'requests:view', 'requests:manage'],
+  MANAGER: ['properties:view', 'requests:view', 'requests:manage'],
   BOOKKEEPER: ['properties:view'],
   ACCOUNTANT: ['properties:view'],
 };
