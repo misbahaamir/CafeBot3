@@ -138,6 +138,7 @@ function renderRequest(kind, request) {
     : `Viewing · ${request.unitName}`;
   addLine(card, title, 'request-title');
   addLine(card, `${request.status.replaceAll('_', ' ')} · received ${new Date(request.createdAt).toLocaleString('en-CA')}`, 'meta');
+  addLine(card, `Reference ${request.id}`, 'meta');
   addLine(card, [request.name, request.email, request.phone].filter(Boolean).join(' · '));
   if (kind === 'maintenance') {
     addLine(card, request.address);
