@@ -51,7 +51,7 @@ This is a checklist, not a deployment guide; no hosting provider has been chosen
 
 ### Backups and restore
 
-Back up everything in `data/` except `data/sample/`. The server rewrites these files in place, so take the copy while the server is stopped (or no one is using it), for example once a day:
+Back up everything in `data/` except `data/sample/`. Each file is saved by writing a temporary file and then swapping it in, so a crash or a full disk during a save leaves the previous version intact; a leftover `data/.*.tmp` file is from an interrupted save and can be deleted. A save can still change two files one after the other (a record, then its audit entry), so take the copy while the server is stopped (or no one is using it), for example once a day:
 
 ```
 cd data && tar czf /path/to/backups/rentledger-$(date +%F).tgz --exclude=sample .

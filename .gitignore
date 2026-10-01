@@ -34,5 +34,8 @@ data/viewing-requests.json
 data/income.json
 data/expenses.json
 
+# Left behind only if the server stops mid-save; may hold any of the above
+data/.*.tmp
+
 # Live-model eval transcripts
 backend/eval/results/

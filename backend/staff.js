@@ -1,5 +1,6 @@
 const fs = require('fs');
 const crypto = require('crypto');
+const { writeFileAtomic } = require('./write-file');
 const { ROLES } = require('./permissions');
 
 const KEY_LENGTH = 64;
@@ -47,7 +48,7 @@ function createStaffStore(filePath, auditLog) {
       createdAt: new Date().toISOString(),
     });
     const previous = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
-    fs.writeFileSync(filePath, JSON.stringify(staff, null, 2), { mode: 0o600 });
+    writeFileAtomic(filePath, JSON.stringify(staff, null, 2), { mode: 0o600 });
     // Same rollback as the other stores: no account exists without its audit
     // entry. The entry never includes the password hash.
     try {
@@ -63,7 +64,7 @@ function createStaffStore(filePath, auditLog) {
       });
     } catch (err) {
       if (previous === null) fs.unlinkSync(filePath);
-      else fs.writeFileSync(filePath, previous);
+      else writeFileAtomic(filePath, previous, { mode: 0o600 });
       throw err;
     }
     return { username, role };

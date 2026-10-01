@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { writeFileAtomic } = require('./write-file');
 const { z } = require('zod');
 const { can } = require('./permissions');
 
@@ -62,12 +63,12 @@ function createRequestStore(dataDir, auditLog, { rentalStore }) {
   function commit(kind, requests, auditEntry) {
     const filePath = path.join(dataDir, KINDS[kind].file);
     const previous = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
-    fs.writeFileSync(filePath, JSON.stringify(requests, null, 2));
+    writeFileAtomic(filePath, JSON.stringify(requests, null, 2));
     try {
       auditLog.append({ entityType: KINDS[kind].entityType, ...auditEntry });
     } catch (err) {
       if (previous === null) fs.unlinkSync(filePath);
-      else fs.writeFileSync(filePath, previous);
+      else writeFileAtomic(filePath, previous);
       throw err;
     }
   }
