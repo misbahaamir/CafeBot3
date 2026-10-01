@@ -8,7 +8,12 @@
 // Re-check them against each year's T776 form.
 //
 // CAPITAL items have no T776 expense line: the accountant claims them as
-// capital cost allowance (CCA), which this app does not calculate.
+// capital cost allowance (CCA), which this app does not calculate. The three
+// capital categories follow canada.ca "Current expenses or capital expenses"
+// (page modified 2026-07-28: improvements beyond original condition, and
+// separate assets such as a refrigerator) and the furniture examples under
+// line 8810 on the first page above:
+// https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/rental-income/current-expenses-capital-expenses.html
 const EXPENSE_CATEGORIES = [
   { code: 'ADVERTISING', name: 'Advertising', t776Line: '8521', treatment: 'CURRENT' },
   { code: 'INSURANCE', name: 'Insurance', t776Line: '8690', treatment: 'CURRENT' },

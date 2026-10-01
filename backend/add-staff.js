@@ -1,6 +1,7 @@
 const path = require('path');
 const readline = require('readline');
 const { createStaffStore } = require('./staff');
+const { createAuditLog } = require('./audit');
 const { ROLES } = require('./permissions');
 
 const [username, role] = process.argv.slice(2);
@@ -13,7 +14,9 @@ const rl = readline.createInterface({ input: process.stdin, output: process.stdo
 rl.question('Password (at least 12 characters; visible as you type): ', (password) => {
   rl.close();
   try {
-    createStaffStore(path.join(__dirname, '..', 'data', 'staff.json')).add(username, password, role);
+    const dataDir = path.join(__dirname, '..', 'data');
+    const auditLog = createAuditLog(path.join(dataDir, 'audit-log.jsonl'));
+    createStaffStore(path.join(dataDir, 'staff.json'), auditLog).add(username, password, role);
     console.log(`\nAdded ${role} "${username}".`);
   } catch (err) {
     console.error(`\n${err.message}`);

@@ -41,7 +41,7 @@ function todayInTimeZone() {
 
 const dataDir = path.join(__dirname, '..', 'data');
 const auditLog = createAuditLog(path.join(dataDir, 'audit-log.jsonl'));
-const staffStore = createStaffStore(path.join(dataDir, 'staff.json'));
+const staffStore = createStaffStore(path.join(dataDir, 'staff.json'), auditLog);
 const rentalStore = createRentalStore(dataDir, { today: todayInTimeZone });
 // Fail at startup, not on the first request, if the data files are missing or invalid.
 rentalStore.load();

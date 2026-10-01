@@ -15,7 +15,7 @@ function hashPassword(password, salt) {
 const DUMMY_SALT = crypto.randomBytes(16);
 const DUMMY_HASH = hashPassword('not-a-real-password', DUMMY_SALT);
 
-function createStaffStore(filePath) {
+function createStaffStore(filePath, auditLog) {
   function readAll() {
     if (!fs.existsSync(filePath)) {
       return [];
@@ -46,7 +46,26 @@ function createStaffStore(filePath) {
       passwordHash: hashPassword(password, salt).toString('base64'),
       createdAt: new Date().toISOString(),
     });
+    const previous = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
     fs.writeFileSync(filePath, JSON.stringify(staff, null, 2), { mode: 0o600 });
+    // Same rollback as the other stores: no account exists without its audit
+    // entry. The entry never includes the password hash.
+    try {
+      auditLog.append({
+        actorType: 'SYSTEM',
+        actorId: null,
+        action: 'CREATE',
+        entityType: 'STAFF',
+        entityId: username,
+        before: null,
+        after: { username, role },
+        reason: null,
+      });
+    } catch (err) {
+      if (previous === null) fs.unlinkSync(filePath);
+      else fs.writeFileSync(filePath, previous);
+      throw err;
+    }
     return { username, role };
   }
 
