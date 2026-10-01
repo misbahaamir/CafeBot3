@@ -73,3 +73,15 @@ test('invalid entries are rejected and nothing is written', () => {
   }
   assert.equal(fs.existsSync(filePath), false);
 });
+
+test('an entry after a cut-off line starts on its own line and the damaged line is kept', () => {
+  const filePath = tempLogPath();
+  const log = createAuditLog(filePath);
+  const first = log.append(statusChange);
+  fs.appendFileSync(filePath, '{"id":"cut-off');
+
+  const next = log.append({ ...statusChange, entityId: 'staff-2' });
+
+  const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+  assert.deepEqual(lines, [JSON.stringify(first), '{"id":"cut-off', JSON.stringify(next), '']);
+});
