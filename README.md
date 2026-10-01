@@ -38,3 +38,27 @@ The page also has an assistant: a staff member describes a transaction in plain 
 `npm test` uses stand-ins for the Claude API. To check how the real model behaves, run `npm run eval` (from `backend/`) with `ANTHROPIC_API_KEY` set. It runs the cases in `backend/eval/cases.js` for both assistants: vacancy answers, refusing to reveal tenant or lease details, prompt injection, emergencies, confirming before submitting a request, and drafting entries without calculating amounts. It uses only the fictional sample data, in a temporary folder.
 
 Every run calls the API and costs money; the script prints the token usage and an approximate cost at the end. Options: `-- --only chat` or `-- --only ledger`, `-- --case <id>`, and `-- --repeat <n>` (the model's answers vary, so repeat a case before trusting one result). Full transcripts are saved to `backend/eval/results/` (not committed). Two cases are marked "read": the checks cannot tell on their own whether the reply invented an answer, so read those transcripts.
+
+## Before going live
+
+This is a checklist, not a deployment guide; no hosting provider has been chosen yet.
+
+- **Hosting:** the app keeps all records in files under `data/`, so it needs a long-running server with a persistent disk. On a host whose disk is wiped on redeploy or restart, every record and the audit log would be lost.
+- **Data residency:** see `docs/data-residency.md` for what is stored where and what is sent to the Claude API. Record the chosen provider and region there.
+- **HTTPS and proxies:** serve the site only over HTTPS. Most hosts put a proxy in front of the app; set `TRUST_PROXY` in `.env` to the number of proxy hops (usually `1`) or to the proxy's addresses, as your host documents. Without it, every visitor shares one rate limit, and the session cookie is not marked `Secure` and no `Strict-Transport-Security` header is sent. Do not set it when the app is reached directly, or visitors could fake their IP address.
+- **Legal:** `frontend/terms.html`, `frontend/privacy.html`, and the tax disclaimer on each page are placeholders marked "LEGAL REVIEW REQUIRED".
+- **AI costs:** set a monthly spending limit on the Anthropic account that owns `ANTHROPIC_API_KEY`.
+
+### Backups and restore
+
+Back up everything in `data/` except `data/sample/`. The server rewrites these files in place, so take the copy while the server is stopped (or no one is using it), for example once a day:
+
+```
+cd data && tar czf /path/to/backups/rentledger-$(date +%F).tgz --exclude=sample .
+```
+
+Keep backups somewhere other than the server's disk, in the region recorded in `docs/data-residency.md`. Keep them at least as long as the CRA record-keeping rules require; confirm the period on canada.ca.
+
+To restore: stop the server, extract a backup into `data/` (`cd data && tar xzf /path/to/backup.tgz`), and start the server. It checks the rental files at startup and refuses to start if any is invalid.
+
+Restore test, 2026-09-30 (Toronto time): on a local copy with sample data, one staff account, and one rent entry, the files were backed up with the command above, deleted, and restored. Checksums of all 8 files matched, the staff member could sign in, and the ledger and totals were identical. Repeat this test on the real host once it is chosen.

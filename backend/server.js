@@ -50,7 +50,18 @@ const requestStore = createRequestStore(dataDir, auditLog, { rentalStore });
 const ledger = createLedger(dataDir, auditLog, { rentalStore, today: todayInTimeZone });
 
 app.disable('x-powered-by');
+// Behind a hosting proxy, req.ip (used for rate limits) and req.secure (used for
+// the session cookie and HSTS) are only correct once the proxy is trusted. A
+// number is the count of proxy hops in front of the app; anything else is a
+// comma-separated list of proxy addresses or subnets.
+if (process.env.TRUST_PROXY) {
+  const trusted = process.env.TRUST_PROXY;
+  app.set('trust proxy', /^\d+$/.test(trusted) ? Number(trusted) : trusted);
+}
 app.use((req, res, next) => {
+  if (req.secure) {
+    res.set('Strict-Transport-Security', 'max-age=31536000');
+  }
   res.set({
     // Every script, style, and request on these pages is same-origin, with no
     // inline scripts or style attributes, so nothing else needs allowing.
@@ -63,8 +74,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Keyed by req.ip, which is the socket address until 'trust proxy' is set for
-// a deployment behind a proxy.
+// Keyed by req.ip; see TRUST_PROXY above.
 function rateLimit(limiter) {
   return (req, res, next) => {
     const { allowed, retryAfterMs } = limiter.take(req.ip);
