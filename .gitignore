@@ -33,3 +33,6 @@ data/viewing-requests.json
 # Income and expense records
 data/income.json
 data/expenses.json
+
+# Live-model eval transcripts
+backend/eval/results/

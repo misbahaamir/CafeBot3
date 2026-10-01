@@ -32,3 +32,9 @@ Staff record rent and other income, and expenses, on the "Rent & expenses" page 
 Expense categories (`backend/categories.js`) follow the expense lines of CRA form T776, checked against canada.ca on 2026-09-30. Capital items and non-deductible items (mortgage principal, land transfer tax, CRA penalties, the owner's own labour) are kept apart from current expenses. The category mapping must be reviewed by a CPA before production use.
 
 The page also has an assistant: a staff member describes a transaction in plain words ("Priya paid $1,750 rent today"), the assistant fills in the form (prompt in `prompts/ledger-assistant.md`), and the staff member checks it and clicks Save. The assistant never saves anything and never calculates amounts. To match names to units it sends property addresses, unit labels, and current tenants' names (not their contact details) to the Claude API. Each staff member can request 30 drafts a minute.
+
+## Testing the assistants against the live model
+
+`npm test` uses stand-ins for the Claude API. To check how the real model behaves, run `npm run eval` (from `backend/`) with `ANTHROPIC_API_KEY` set. It runs the cases in `backend/eval/cases.js` for both assistants: vacancy answers, refusing to reveal tenant or lease details, prompt injection, emergencies, confirming before submitting a request, and drafting entries without calculating amounts. It uses only the fictional sample data, in a temporary folder.
+
+Every run calls the API and costs money; the script prints the token usage and an approximate cost at the end. Options: `-- --only chat` or `-- --only ledger`, `-- --case <id>`, and `-- --repeat <n>` (the model's answers vary, so repeat a case before trusting one result). Full transcripts are saved to `backend/eval/results/` (not committed). Two cases are marked "read": the checks cannot tell on their own whether the reply invented an answer, so read those transcripts.

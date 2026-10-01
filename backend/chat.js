@@ -11,6 +11,13 @@ const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_MESSAGES = 10;
 // Bounds the API calls (and cost) one chat message can trigger.
 const MAX_TOOL_ROUNDS = 5;
+// Thinking counts toward max_tokens, so this leaves room for it as well as
+// the short reply the prompt asks for.
+const MAX_TOKENS = 4096;
+// The model's own starting point for chat; raise only if the eval shows a gain.
+const EFFORT = 'low';
+const REFUSAL_REPLY =
+  "Sorry, I can't help with that here. For anything about your tenancy, please contact the office.";
 
 const BASE_PROMPT = fs.readFileSync(path.join(__dirname, '..', 'prompts', 'tenant-assistant.md'), 'utf-8');
 
@@ -124,7 +131,16 @@ function createPublicAssistant({ anthropic, rentalStore, requestStore, loadOffic
   async function reply({ message, conversationHistory }, clientKey) {
     const system = systemPrompt();
     const messages = [...conversationHistory, { role: 'user', content: message }];
-    let response = await anthropic.messages.create({ model: MODEL, max_tokens: 1024, system, tools: TOOLS, messages });
+    const request = () =>
+      anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        output_config: { effort: EFFORT },
+        system,
+        tools: TOOLS,
+        messages,
+      });
+    let response = await request();
 
     for (let round = 1; response.stop_reason === 'tool_use'; round += 1) {
       if (round > MAX_TOOL_ROUNDS) {
@@ -141,9 +157,13 @@ function createPublicAssistant({ anthropic, rentalStore, requestStore, loadOffic
             content: JSON.stringify(withDisplayAmounts(runTool(block.name, block.input, clientKey))),
           })),
       });
-      response = await anthropic.messages.create({ model: MODEL, max_tokens: 1024, system, tools: TOOLS, messages });
+      response = await request();
     }
 
+    // A decline arrives as a normal response; its content is not a reply.
+    if (response.stop_reason === 'refusal') {
+      return REFUSAL_REPLY;
+    }
     return response.content
       .filter((block) => block.type === 'text')
       .map((block) => block.text)

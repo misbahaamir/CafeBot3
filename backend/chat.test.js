@@ -108,3 +108,14 @@ test('chat requests are bounded', () => {
   assert.equal(chatRequestSchema.safeParse({ message: 'hi', conversationHistory: [{ role: 'system', content: 'x' }] }).success, false);
   assert.equal(chatRequestSchema.safeParse({ message: 'hi', sessionId: 'x' }).success, false);
 });
+
+test('requests leave room for thinking, set effort explicitly, and turn a refusal into a safe reply', async () => {
+  const { assistant, calls } = setup({
+    responses: [{ stop_reason: 'refusal', content: [{ type: 'text', text: 'partial' }] }],
+  });
+  const reply = await assistant.reply({ message: 'hi', conversationHistory: [] }, 'ip');
+  assert.match(reply, /contact the office/);
+  assert.ok(calls[0].max_tokens >= 4096);
+  assert.equal(calls[0].output_config.effort, 'low');
+  assert.equal(calls[0].tool_choice, undefined);
+});

@@ -12,20 +12,25 @@ const RENTAL_STORE = {
 };
 const MANAGER = { username: 'maria', role: 'MANAGER' };
 
-function setup(toolInput) {
+const NULL_DRAFT = {
+  kind: 'INCOME', propertyId: null, unitId: null, incomeType: null, amount: null, gstHst: null, date: null,
+  payer: null, vendor: null, categoryCode: null, paymentMethod: null, notes: null, questions: null,
+};
+
+function setup(output, response) {
   const calls = [];
   const anthropic = {
     messages: {
       create: async (params) => {
         calls.push(params);
-        return { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'tu', name: 'draft_entry', input: toolInput }] };
+        return response || { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ ...NULL_DRAFT, ...output }) }] };
       },
     },
   };
   return { calls, assistant: createLedgerAssistant({ anthropic, rentalStore: RENTAL_STORE, today: () => '2026-09-30' }) };
 }
 
-test('a draft keeps valid fields, normalises the amount, and forces the draft tool', async () => {
+test('a draft keeps valid fields and normalises the amount, using structured output instead of a forced tool', async () => {
   const { calls, assistant } = setup({
     kind: 'INCOME', propertyId: 'harbour-lane', unitId: 'harbour-2b', incomeType: 'RENT',
     amount: '1,750', date: '2026-09-30', payer: 'Priya Nair', paymentMethod: 'E_TRANSFER',
@@ -36,7 +41,11 @@ test('a draft keeps valid fields, normalises the amount, and forces the draft to
     incomeType: 'RENT', date: '2026-09-30', payer: 'Priya Nair', vendor: null, categoryCode: null,
     paymentMethod: null, notes: null, questions: null,
   });
-  assert.deepEqual(calls[0].tool_choice, { type: 'tool', name: 'draft_entry' });
+  // Claude Sonnet 5.5 rejects tool_choice "tool"/"any" with a 400.
+  assert.equal(calls[0].tool_choice, undefined);
+  assert.equal(calls[0].tools, undefined);
+  assert.equal(calls[0].output_config.format.type, 'json_schema');
+  assert.equal(calls[0].output_config.effort, 'low');
   assert.match(calls[0].system, /Priya Nair/);
   assert.match(calls[0].system, /2026-09-30/);
 });
@@ -67,8 +76,16 @@ test('only roles that record entries can ask for drafts', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('a response without the draft tool is reported, not guessed', async () => {
-  const anthropic = { messages: { create: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Sure!' }] }) } };
-  const assistant = createLedgerAssistant({ anthropic, rentalStore: RENTAL_STORE, today: () => '2026-09-30' });
-  assert.deepEqual(await assistant.draft({ message: 'rent' }, MANAGER), { error: 'no_draft' });
+test('a refusal, a cut-off response, or output that is not JSON is reported, not guessed', async () => {
+  const cases = [
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Sure!' }] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'null' }] },
+    { stop_reason: 'end_turn', content: [] },
+    { stop_reason: 'refusal', content: [{ type: 'text', text: '{"kind":"INCOME"}' }] },
+    { stop_reason: 'max_tokens', content: [{ type: 'text', text: '{"kind":"INC' }] },
+  ];
+  for (const response of cases) {
+    const { assistant } = setup(null, response);
+    assert.deepEqual(await assistant.draft({ message: 'rent' }, MANAGER), { error: 'no_draft' }, JSON.stringify(response));
+  }
 });

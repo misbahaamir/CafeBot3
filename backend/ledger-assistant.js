@@ -5,6 +5,7 @@ const { can } = require('./permissions');
 const { formatCents, parseDollarsToCents } = require('./money');
 const { EXPENSE_CATEGORIES, CATEGORY_CODES } = require('./categories');
 const { leaseCovers } = require('./rentals');
+const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 
 const MODEL = 'claude-sonnet-5-5';
 const BASE_PROMPT = fs.readFileSync(path.join(__dirname, '..', 'prompts', 'ledger-assistant.md'), 'utf-8');
@@ -13,31 +14,31 @@ const PAYMENT_METHODS = ['CASH', 'CHEQUE', 'CREDIT_CARD', 'DEBIT', 'E_TRANSFER',
 
 const draftRequestSchema = z.object({ message: z.string().trim().min(1).max(1000) }).strict();
 
-// Unknown fields are left out rather than sent as null.
-const text = { type: 'string' };
-const DRAFT_TOOL = {
-  name: 'draft_entry',
-  description: 'Returns a draft income or expense entry for the staff member to check and save.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      kind: { type: 'string', enum: ['INCOME', 'EXPENSE'] },
-      propertyId: text,
-      unitId: text,
-      incomeType: { type: 'string', enum: ['RENT', 'OTHER'] },
-      amount: { ...text, description: 'Exactly as written, e.g. "1,750.00". Never calculated.' },
-      gstHst: { ...text, description: 'Only if stated separately.' },
-      date: { ...text, description: 'YYYY-MM-DD' },
-      payer: { ...text, description: 'Income only: who paid.' },
-      vendor: { ...text, description: 'Expense only: who was paid.' },
-      categoryCode: { type: 'string', enum: CATEGORY_CODES },
-      paymentMethod: { type: 'string', enum: PAYMENT_METHODS },
-      notes: text,
-      questions: { ...text, description: 'What the staff member must fill in or check.' },
-    },
-    required: ['kind'],
-  },
-};
+// The model fills every field, with null for anything unknown. The API
+// enforces this shape but not the enum values (the SDK moves enums into
+// descriptions), so every field is checked again below.
+const draftOutputSchema = z
+  .object({
+    kind: z.enum(['INCOME', 'EXPENSE']),
+    propertyId: z.string().nullable(),
+    unitId: z.string().nullable(),
+    incomeType: z.enum(['RENT', 'OTHER']).nullable(),
+    amount: z.string().nullable().describe('Exactly as written, e.g. "1,750.00". Never calculated.'),
+    gstHst: z.string().nullable().describe('Only if stated separately.'),
+    date: z.string().nullable().describe('YYYY-MM-DD'),
+    payer: z.string().nullable().describe('Income only: who paid.'),
+    vendor: z.string().nullable().describe('Expense only: who was paid.'),
+    categoryCode: z.enum(CATEGORY_CODES).nullable(),
+    paymentMethod: z.enum(PAYMENT_METHODS).nullable(),
+    notes: z.string().nullable(),
+    questions: z.string().nullable().describe('What the staff member must fill in or check.'),
+  })
+  .strict();
+// Thinking counts toward max_tokens, so this leaves room for it as well as
+// the short JSON draft.
+const MAX_TOKENS = 4096;
+// The model's own starting point for extraction; raise only if the eval shows a gain.
+const EFFORT = 'low';
 
 // Each field is checked on its own and dropped (set to null) if invalid, so
 // one bad value from the model doesn't lose the rest of the draft. Nothing
@@ -116,19 +117,30 @@ function createLedgerAssistant({ anthropic, rentalStore, today }) {
       return { error: 'forbidden' };
     }
     const reference = referenceData();
+    // Structured output rather than a forced tool call: this model rejects
+    // tool_choice "tool" with a 400.
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: MAX_TOKENS,
+      output_config: { effort: EFFORT, format: zodOutputFormat(draftOutputSchema) },
       system: `${BASE_PROMPT}\n# Today's date\n\n${today()}\n\n# Reference data\n\n${JSON.stringify(reference, null, 2)}`,
-      tools: [DRAFT_TOOL],
-      tool_choice: { type: 'tool', name: DRAFT_TOOL.name },
       messages: [{ role: 'user', content: message }],
     });
-    const toolUse = response.content.find((block) => block.type === 'tool_use' && block.name === DRAFT_TOOL.name);
-    if (!toolUse || typeof toolUse.input !== 'object' || toolUse.input === null) {
+    // A decline or a cut-off response has no complete draft to read.
+    if (response.stop_reason !== 'end_turn') {
       return { error: 'no_draft' };
     }
-    return { draft: cleanDraft(toolUse.input, reference) };
+    const text = response.content.find((block) => block.type === 'text');
+    let input;
+    try {
+      input = JSON.parse(text.text);
+    } catch {
+      return { error: 'no_draft' };
+    }
+    if (typeof input !== 'object' || input === null) {
+      return { error: 'no_draft' };
+    }
+    return { draft: cleanDraft(input, reference) };
   }
 
   return { draft };

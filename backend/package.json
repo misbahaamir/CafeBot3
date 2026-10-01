@@ -7,7 +7,8 @@
     "start": "node server.js",
     "staff:add": "node add-staff.js",
     "test": "node --test",
-    "seed:sample": "node seed-sample.js"
+    "seed:sample": "node seed-sample.js",
+    "eval": "node eval/run-eval.js"
   },
   "keywords": [],
   "author": "",
